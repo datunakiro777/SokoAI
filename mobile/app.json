@@ -1,0 +1,39 @@
+{
+  "expo": {
+    "name": "SokoAI",
+    "slug": "sokoai",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "scheme": "sokoai",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "app.sokoai.mobile",
+      "infoPlist": {
+        "NSCameraUsageDescription": "SokoAI uses the camera to photograph mushrooms for offline identification.",
+        "NSLocationWhenInUseUsageDescription": "Approximate location helps screen regional mushroom matches on this device."
+      }
+    },
+    "android": {
+      "package": "app.sokoai.mobile",
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-asset",
+      ["expo-camera", {"cameraPermission": "Photograph mushrooms for offline identification", "recordAudioAndroid": false}],
+      ["expo-location", {"locationWhenInUsePermission": "Approximate location helps screen regional mushroom matches on this device."}],
+      "onnxruntime-react-native"
+    ]
+  }
+}
