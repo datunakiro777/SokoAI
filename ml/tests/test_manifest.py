@@ -61,6 +61,19 @@ class ManifestTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Commercial license not cleared"):
             load_rows(rows)
 
+    def test_training_pilot_can_omit_untouched_test_split(self):
+        rows = [r for r in base_rows() if r["split"] != "test"]
+        rows[0]["view"] = "unspecified"
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "manifest.csv"
+            with path.open("w", newline="", encoding="utf-8") as handle:
+                writer = csv.DictWriter(handle, fieldnames=sorted(FIELDS))
+                writer.writeheader()
+                writer.writerows(rows)
+            self.assertEqual(len(load_manifest(path, check_files=False, require_test=False)), 9)
+            with self.assertRaisesRegex(ValueError, "Untouched test split"):
+                load_manifest(path, check_files=False)
+
 
 if __name__ == "__main__":
     unittest.main()

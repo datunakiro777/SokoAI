@@ -15,10 +15,12 @@ FIELDS = {
 }
 ALLOWED_LICENSES = {"CC0", "CC-BY-4.0", "OWNED"}
 SPLITS = {"train", "validation", "calibration", "test"}
-VIEWS = {"cap", "underside", "base"}
+REQUIRED_TEST_VIEWS = {"cap", "underside", "base"}
+VIEWS = REQUIRED_TEST_VIEWS | {"unspecified"}
 
 
-def load_manifest(path: str | Path, *, check_files: bool = True) -> list[dict[str, str]]:
+def load_manifest(path: str | Path, *, check_files: bool = True,
+                  require_test: bool = True) -> list[dict[str, str]]:
     path = Path(path)
     with path.open(newline="", encoding="utf-8") as handle:
         reader = csv.DictReader(handle)
@@ -81,9 +83,9 @@ def load_manifest(path: str | Path, *, check_files: bool = True) -> list[dict[st
     for row in rows:
         grouped[row["observation_id"]].add(row["view"])
     for row in rows:
-        if row["split"] == "test" and grouped[row["observation_id"]] != VIEWS:
+        if row["split"] == "test" and grouped[row["observation_id"]] != REQUIRED_TEST_VIEWS:
             raise ValueError(f"Test observation needs all three views: {row['observation_id']}")
-    if not any(row["split"] == "test" for row in rows):
+    if require_test and not any(row["split"] == "test" for row in rows):
         raise ValueError("Untouched test split is required")
     if not any(row["split"] == "validation" for row in rows):
         raise ValueError("Validation split is required")

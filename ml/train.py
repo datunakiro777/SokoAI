@@ -137,6 +137,7 @@ def main():
     parser.add_argument("--workers", type=int, default=4)
     parser.add_argument("--epochs", type=int, default=40)
     parser.add_argument("--learning-rate", type=float, default=0.0003)
+    parser.add_argument("--accelerator", choices=("auto", "cpu", "gpu", "mps"), default="auto")
     args = parser.parse_args()
 
     if args.backbone_weights:
@@ -146,7 +147,7 @@ def main():
         if provenance.get("commercial_use_cleared") is not True or not provenance.get("source"):
             parser.error("Starting weights are not documented as cleared for commercial use")
 
-    rows = load_manifest(args.manifest)
+    rows = load_manifest(args.manifest, require_test=False)
     catalog = load_catalog(args.catalog)
     species_ids = validate_labels(rows, catalog)
     output = Path(args.output)
@@ -165,7 +166,11 @@ def main():
         ModelCheckpoint(dirpath=output / "checkpoints", filename="best", monitor="val_loss", mode="min", save_top_k=1),
         EarlyStopping(monitor="val_loss", patience=7, mode="min"),
     ]
-    trainer = L.Trainer(accelerator="gpu", devices=1, precision="16-mixed", max_epochs=args.epochs,
+    accelerator = args.accelerator
+    if accelerator == "auto":
+        accelerator = "gpu" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
+    precision = "16-mixed" if accelerator == "gpu" else "32-true"
+    trainer = L.Trainer(accelerator=accelerator, devices=1, precision=precision, max_epochs=args.epochs,
                         callbacks=callbacks, default_root_dir=output, deterministic=True)
     trainer.fit(model, data)
     print(f"Best checkpoint: {callbacks[0].best_model_path}")
