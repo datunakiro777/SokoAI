@@ -90,11 +90,12 @@ class MushroomDataModule(L.LightningDataModule):
 
 class MushroomModule(L.LightningModule):
     def __init__(self, backbone: str, species_count: int, learning_rate: float,
-                 backbone_weights: str | None = None):
+                 backbone_weights: str | None = None, toxic_pos_weight: float = 1.0):
         super().__init__()
         self.save_hyperparameters(ignore=["backbone_weights"])
         self.network = MushroomNet(backbone, species_count, backbone_weights)
         self.learning_rate = learning_rate
+        self.toxic_pos_weight = toxic_pos_weight
 
     def _loss(self, batch):
         images, present, species, toxic = batch
@@ -103,10 +104,10 @@ class MushroomModule(L.LightningModule):
         species_mask = species >= 0
         toxicity_mask = toxic >= 0
         species_loss = nn.functional.cross_entropy(species_logits[species_mask], species[species_mask]) if species_mask.any() else presence_loss * 0
-        # Toxic-positive examples receive extra weight; threshold selection still uses independent calibration data.
+        # Set class weight on validation data; final verdict thresholds need independent calibration.
         toxicity_loss = nn.functional.binary_cross_entropy_with_logits(
             toxic_logits.flatten()[toxicity_mask], toxic[toxicity_mask],
-            pos_weight=torch.tensor(10.0, device=self.device),
+            pos_weight=torch.tensor(self.toxic_pos_weight, device=self.device),
         ) if toxicity_mask.any() else presence_loss * 0
         return presence_loss + species_loss + 2 * toxicity_loss
 
@@ -137,8 +138,11 @@ def main():
     parser.add_argument("--workers", type=int, default=4)
     parser.add_argument("--epochs", type=int, default=40)
     parser.add_argument("--learning-rate", type=float, default=0.0003)
+    parser.add_argument("--toxic-pos-weight", type=float, default=1.0)
     parser.add_argument("--accelerator", choices=("auto", "cpu", "gpu", "mps"), default="auto")
     args = parser.parse_args()
+    if args.toxic_pos_weight <= 0:
+        parser.error("--toxic-pos-weight must be positive")
 
     if args.backbone_weights:
         if not args.weights_provenance:
@@ -157,11 +161,13 @@ def main():
         "backbone": args.backbone, "species_count": len(species_ids),
         "manifest": str(Path(args.manifest).resolve()), "catalog": str(Path(args.catalog).resolve()),
         "backbone_weights": args.backbone_weights, "weights_provenance": args.weights_provenance,
+        "toxic_pos_weight": args.toxic_pos_weight,
     }, indent=2), encoding="utf-8")
 
     L.seed_everything(20261010, workers=True)
     data = MushroomDataModule(rows, species_ids, args.batch_size, args.workers)
-    model = MushroomModule(args.backbone, len(species_ids), args.learning_rate, args.backbone_weights)
+    model = MushroomModule(args.backbone, len(species_ids), args.learning_rate,
+                           args.backbone_weights, args.toxic_pos_weight)
     callbacks = [
         ModelCheckpoint(dirpath=output / "checkpoints", filename="best", monitor="val_loss", mode="min", save_top_k=1),
         EarlyStopping(monitor="val_loss", patience=7, mode="min"),

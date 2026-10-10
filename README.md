@@ -55,7 +55,19 @@ The dataset format is a CSV with these columns:
 specimen_id,observation_id,photo_path,view,species_id,toxicity,license,photographer,source_url,split,region,lookalike_group
 ```
 
-`view` is `cap`, `underside`, or `base`; `species_id=__none__` denotes a non-mushroom. The catalog is a JSON array of objects with `id`, `scientificName`, `toxicity` (`poisonous`, `edible`, `unknown`), and a `toxicitySource` for any edible/poisonous label. Optional `commonName` and `nutrition` may be included. Nutrition needs `sourceId`, `caloriesKcal`, `proteinG`, `carbsG`, and `fatG` per 100 g. IDs must exactly match between CSV and catalog. Only test specimens may have species IDs absent from the trained catalog.
+`view` is `cap`, `underside`, or `base`; `unspecified` is accepted for training-only pilot photos. Every test specimen must have the three named views. `species_id=__none__` denotes a non-mushroom. The catalog is a JSON array of objects with `id`, `scientificName`, `toxicity` (`poisonous`, `edible`, `unknown`), and a `toxicitySource` for any edible/poisonous label. Optional `commonName` and `nutrition` may be included. Nutrition needs `sourceId`, `caloriesKcal`, `proteinG`, `carbsG`, and `fatG` per 100 g. IDs must exactly match between CSV and catalog. Only test specimens may have species IDs absent from the trained catalog.
+
+### CC0 pilot run
+
+`ml.collect_inat` downloads one CC0 photo per exact-species, research-grade iNaturalist observation and saves the source response and per-photo provenance. CC0 is a public-domain dedication, so the pilot does not rely on noncommercial or attribution-restricted photo licenses. The four mushroom species and a tree negative control are only a pipeline check. Community identifications are not expert-verified specimen labels, observation IDs do not prove two observations depict different physical specimens, and the photos have no verified cap/underside/base views. The pilot has no untouched test set and cannot support a likely-edible verdict.
+
+```bash
+python -m ml.collect_inat --per-class 40
+python -m ml.train --manifest ml/data/inat-pilot/manifest.csv --catalog ml/data/inat-pilot/catalog.json --output ml/runs/inat-pilot --backbone mobilenet_v3_large --epochs 4 --workers 0 --accelerator cpu
+python -m ml.pilot_report --manifest ml/data/inat-pilot/manifest.csv --checkpoint ml/runs/inat-pilot/checkpoints/best.ckpt --species-ids ml/runs/inat-pilot/species_ids.json --output ml/reports/inat-pilot.json
+```
+
+The collector saves photos and provenance under ignored `ml/data/`, training checkpoints under ignored `ml/runs/`, and validation diagnostics under ignored `ml/reports/`. Neither is installed in the app. The pilot report uses a 0.5 threshold on uncalibrated single-photo scores and cannot establish eating safety. For Lightning.ai, clone this repository into a Studio, install `ml/requirements.txt`, and run the same collector and training commands there; choose a GPU after reviewing Studio usage costs and change `--accelerator` to `gpu`.
 
 ## CNN choice and Lightning.ai workflow
 
