@@ -31,9 +31,21 @@
     "plugins": [
       "expo-router",
       "expo-asset",
-      ["expo-camera", {"cameraPermission": "Photograph mushrooms for offline identification", "recordAudioAndroid": false}],
-      ["expo-location", {"locationWhenInUsePermission": "Approximate location helps screen regional mushroom matches on this device."}],
-      "onnxruntime-react-native"
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Photograph mushrooms for offline identification",
+          "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Approximate location helps screen regional mushroom matches on this device."
+        }
+      ],
+      "onnxruntime-react-native",
+      "react-native-fast-tflite"
     ]
   }
 }

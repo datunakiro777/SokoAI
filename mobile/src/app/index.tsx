@@ -1,13 +1,16 @@
 import { useState } from 'react';
 import { router } from 'expo-router';
 import * as Location from 'expo-location';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import Constants from 'expo-constants';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { modelAsset } from '../lib/modelBundle';
+import { MODEL_LICENSE } from '../lib/modelLicense';
 import { useScan } from '../state/ScanContext';
 import { colors } from '../ui/theme';
 
 const modelReady = modelAsset !== null;
+const expoGo = Constants.appOwnership === 'expo';
 
 export default function HomeScreen() {
   const { reset, setInRegion } = useScan();
@@ -37,6 +40,10 @@ export default function HomeScreen() {
   }
 
   function start() {
+    if (!modelReady && expoGo) {
+      Alert.alert('Development build needed', 'Expo Go cannot run the offline pretrained model. Install a SokoAI development build to test identification.');
+      return;
+    }
     reset();
     router.push('/capture');
   }
@@ -71,7 +78,12 @@ export default function HomeScreen() {
         {!modelReady && (
           <View style={styles.modelNotice}>
             <Text style={styles.modelTitle}>Experimental species preview</Text>
-            <Text style={styles.modelText}>A small pilot model can suggest one of four species. It is unvalidated and cannot tell you that any mushroom is safe to eat.</Text>
+            <Text style={styles.modelText}>{expoGo
+              ? 'Expo Go cannot run this offline model. Install the SokoAI development build to test species identification.'
+              : 'An offline pretrained model compares 507 nature classes, including 21 fungal classes. It has not been validated to tell you a mushroom is safe to eat.'}</Text>
+            <Pressable onPress={() => Alert.alert('iNaturalist model license', MODEL_LICENSE)}>
+              <Text style={styles.modelLicense}>Model credit and MIT license</Text>
+            </Pressable>
           </View>
         )}
 
@@ -89,20 +101,20 @@ export default function HomeScreen() {
           ))}
         </View>
 
-        <Pressable style={styles.locationButton} onPress={useApproximateLocation} disabled={locationBusy}>
+        {modelReady && <Pressable style={styles.locationButton} onPress={useApproximateLocation} disabled={locationBusy}>
           <Text style={styles.locationIcon}>⌖</Text>
           <View style={styles.locationCopy}>
             <Text style={styles.locationTitle}>{locationBusy ? 'Getting location…' : locationLabel}</Text>
             <Text style={styles.locationDetail}>Required for a regional assessment. Coordinates stay on this phone.</Text>
           </View>
           <Text style={styles.locationArrow}>›</Text>
-        </Pressable>
+        </Pressable>}
 
         <Pressable style={styles.startButton} onPress={start}>
-          <Text style={styles.startText}>{modelReady ? 'Start identification' : 'Try species preview'}</Text>
+          <Text style={styles.startText}>{modelReady ? 'Start identification' : expoGo ? 'Development build needed' : 'Try species preview'}</Text>
           <Text style={styles.startArrow}>↗</Text>
         </Pressable>
-        <Text style={styles.footer}>Focused on Georgia and the Caucasus · English beta</Text>
+        <Text style={styles.footer}>{modelReady ? 'Focused on Georgia and the Caucasus' : 'Species preview only'} · English beta</Text>
       </ScrollView>
     </SafeAreaView>
   );
@@ -133,6 +145,7 @@ const styles = StyleSheet.create({
   modelNotice: { backgroundColor: '#E9EEF0', borderRadius: 18, padding: 15, marginTop: 14 },
   modelTitle: { color: '#375363', fontSize: 14, fontWeight: '800' },
   modelText: { color: '#4F6975', fontSize: 12, lineHeight: 18, marginTop: 5 },
+  modelLicense: { color: colors.forest, fontSize: 12, fontWeight: '700', marginTop: 10, textDecorationLine: 'underline' },
   sectionTitle: { color: colors.text, fontSize: 20, fontWeight: '800', marginTop: 27, marginBottom: 13, letterSpacing: -0.3 },
   steps: { backgroundColor: colors.paper, borderRadius: 22, paddingHorizontal: 18 },
   step: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#F0F0E9' },

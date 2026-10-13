@@ -53,28 +53,42 @@ export default function ResultScreen() {
           {result && <Text style={styles.reason}>{result.reason}</Text>}
         </View>
 
-        {result?.pilot && (
-          <View style={styles.pilotNotice}>
-            <Text style={styles.pilotTitle}>EXPERIMENTAL MODEL</Text>
-            <Text style={styles.pilotText}>This model knows only four species and has not passed safety validation. A match can be wrong. Eating risk: uncertain — do not eat.</Text>
+        {result?.preview && (
+          <View style={styles.previewNotice}>
+            <Text style={styles.previewTitle}>{result.previewModel?.toUpperCase() || 'EXPERIMENTAL MODEL'}</Text>
+            <Text style={styles.previewText}>{result.previewDetails || 'This model has not passed safety validation.'} A match can be wrong. Do not eat based on this result.</Text>
           </View>
         )}
 
         {result?.species && (
           <View style={styles.card}>
-            <Text style={styles.label}>{result.pilot ? 'POSSIBLE SPECIES · EXPERIMENTAL' : 'LIKELY SPECIES'}</Text>
+            <Text style={styles.label}>{result.preview ? 'POSSIBLE SPECIES · EXPERIMENTAL' : 'LIKELY SPECIES'}</Text>
             <Text style={styles.speciesName}>{result.species.commonName || result.species.scientificName}</Text>
             {result.species.commonName && <Text style={styles.latin}>{result.species.scientificName}</Text>}
-            {!result.pilot && <>
+            {!result.preview && <>
               <View style={styles.divider} />
               <Text style={styles.fieldLabel}>Reference edibility</Text>
               <Text style={styles.fieldValue}>{result.species.toxicity === 'poisonous' ? 'Poisonous' : result.species.toxicity === 'edible' ? 'Listed as edible' : 'Unknown'}</Text>
               {result.species.toxicitySource && <Text style={styles.source}>Source: {result.species.toxicitySource}</Text>}
             </>}
+            {result.preview && result.species.toxicity === 'poisonous' && <>
+              <View style={styles.divider} />
+              <Text style={styles.fieldLabel}>Published species risk</Text>
+              <Text style={styles.fieldValue}>Poisonous</Text>
+              {result.species.toxicitySource && <Text style={styles.source}>Source: {result.species.toxicitySource}</Text>}
+            </>}
           </View>
         )}
 
-        {result && !result.pilot && result.kind !== 'notDetected' && (
+        {result?.preview && result.speciesConfidence !== undefined && (
+          <View style={styles.card}>
+            <Text style={styles.label}>UNCALIBRATED MODEL MATCH</Text>
+            <View style={styles.scoreRow}><Text style={styles.scoreLabel}>Species class score</Text><Text style={styles.score}>{percentage(result.speciesConfidence)}</Text></View>
+            <Text style={styles.scoreNote}>This score is not the chance that the species is correct and is not a poison probability.</Text>
+          </View>
+        )}
+
+        {result && !result.preview && result.kind !== 'notDetected' && (
           <View style={styles.card}>
             <Text style={styles.label}>MODEL CONFIDENCE</Text>
             {result.speciesConfidence !== undefined && (
@@ -134,9 +148,9 @@ const styles = StyleSheet.create({
   errorText: { color: colors.red, fontSize: 12, textAlign: 'center', marginTop: 15, lineHeight: 18 },
   reason: { color: colors.muted, fontSize: 12, textAlign: 'center', marginTop: 13, lineHeight: 18 },
   card: { backgroundColor: colors.paper, borderRadius: 20, padding: 19, marginBottom: 14 },
-  pilotNotice: { backgroundColor: colors.amberPale, borderRadius: 18, padding: 17, marginBottom: 14 },
-  pilotTitle: { color: '#69451F', fontSize: 11, fontWeight: '900', letterSpacing: 1.2 },
-  pilotText: { color: '#765B3D', fontSize: 12, lineHeight: 18, marginTop: 6 },
+  previewNotice: { backgroundColor: colors.amberPale, borderRadius: 18, padding: 17, marginBottom: 14 },
+  previewTitle: { color: '#69451F', fontSize: 11, fontWeight: '900', letterSpacing: 1.2 },
+  previewText: { color: '#765B3D', fontSize: 12, lineHeight: 18, marginTop: 6 },
   label: { color: colors.sage, fontSize: 10, fontWeight: '900', letterSpacing: 1.7, marginBottom: 10 },
   speciesName: { color: colors.text, fontSize: 22, fontWeight: '800' },
   latin: { color: colors.muted, fontSize: 13, fontStyle: 'italic', marginTop: 3 },

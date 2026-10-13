@@ -1,36 +1,38 @@
 # SokoAI
 
-An offline iOS and Android mushroom field guide with a three-photo camera flow. This repository contains the mobile app and a reproducible Lightning/PyTorch training and evaluation pipeline. A small **experimental four-species pilot model** is bundled for Expo Go testing. It can suggest a species when all three views agree, or return “Unknown” / “Not detected.” It cannot assess eating safety; its `likelyEdible` verdict is disabled. The full mushroom photo dataset is not bundled.
+An offline iOS and Android mushroom field guide with a three-photo camera flow. The app now bundles [iNaturalist's small pretrained on-device vision model](https://github.com/inaturalist/model-files/releases/tag/v25.01.15) (v25.01.15, MIT), plus a reproducible Lightning/PyTorch training and evaluation pipeline. The pretrained model covers 507 nature classes, including only 21 fungal classes. It is a **species preview**, not an eating-safety model. The `likelyEdible` verdict remains disabled.
 
 ## What the app does
 
-The user photographs the cap, underside, and stem/base of one specimen. A packaged ONNX model, when available, runs entirely on the phone and estimates mushroom presence, species, and poisonous evidence. The results are:
+The user photographs the cap, underside, and stem/base of one specimen. The current pretrained TFLite model runs entirely on the phone and produces species-class scores. It has no poison probability output. A separately trained and validated ONNX model could later add poisonous evidence. The results are:
 
 | Result | Rule |
 | --- | --- |
-| Not detected | No mushroom passes the presence check; take new photos. |
-| Unknown | Mushroom present, but the species is uncertain or the supported region is unverified; do not eat. |
-| Not safe to eat | A documented poisonous species is identified with high confidence, or the calibrated poisonous score is high. |
+| Not detected | All three views strongly favor non-fungal classes; take new photos. This preliminary check can miss unfamiliar mushrooms. |
+| Unknown | The views disagree, image quality is poor, or the model cannot match a supported fungal class; do not eat. |
+| Not safe to eat | All three views strongly match one of the three catalog species independently documented as poisonous. This is a warning, not a validated diagnosis. |
 | Likely edible | Every view passes, a known edible species and edible score exceed the configured thresholds, no poisonous look-alike remains plausible, and the independent release gate passed. The app still says **“Do not eat based on this app alone.”** |
 | Uncertain | All other assessments; do not eat. |
 
 The camera and results screen display a warning. Nutrition is bundled offline **only** when a likely-edible result has an exact species entry whose USDA FoodData Central record was manually verified. A score is an estimate, never proof that eating is safe. A [clinical study of mushroom identification apps](https://pubmed.ncbi.nlm.nih.gov/36794335/) found that photo-based apps could not reliably exclude poisonous mushrooms.
 
-The initial region is Georgia/Caucasus. Location is checked on the device and is required for a regional assessment; the app does not upload photos or coordinates. The rough location bounds are only a coarse screen and require field validation before release.
+The pretrained model is not region-validated. Location is used only by the future regional ONNX path. The app does not upload photos or coordinates for inference.
 
 ## Run the mobile app
 
 ```bash
 cd mobile
 npm ci
-npx expo start
+npx expo start --dev-client
 ```
 
-Expo Go runs the bundled pilot using a JavaScript-only CNN interpreter on the phone. After the weights have been downloaded with the Expo bundle, inference needs no network. A future validated ONNX model will use `onnxruntime-react-native` and require an Expo **development build**. The bundle is configured for iOS and Android, but a signed device build has not been produced here. See [Expo development builds](https://docs.expo.dev/develop/development-builds/introduction/) and [EAS Build](https://docs.expo.dev/build/introduction/) for the device setup.
+The model uses native TensorFlow Lite through `react-native-fast-tflite`, so it requires an Expo **development build** or production build. Expo Go cannot run it. Once the app and model assets are installed, inference does not need network access. The native Android configuration was generated successfully, but a signed device build has not been produced in this workspace: Expo CLI was not logged in, and the Mac has no Android SDK. See [Expo development builds](https://docs.expo.dev/develop/development-builds/introduction/) for the device setup.
 
-### Preview on Android with Expo Go
+### Android development build
 
-For the experimental species preview, install the **SDK 57** Android build of [Expo Go](https://expo.dev/go), then run `npx expo start --go --lan --clear` in `mobile/` and scan the new QR code inside Expo Go. Keep the phone and computer on the same Wi-Fi or hotspot. The first analysis downloads the 3 MB pilot weights from Metro; subsequent inference runs on the phone. The pilot was trained on single-view community-labeled photos of four species plus a tree control, not expert-verified three-view specimens. Its validation species accuracy was 40/60 photos at 224 pixels and 39/60 at the 96-pixel preview size. It has no independent poisonous-specimen safety evaluation, so every possible match says **“Uncertain — do not eat.”** Expo Go cannot test the ONNX native runtime once a validated model is installed. A blue error screen may also reflect an SDK mismatch: check the detailed message and use the matching Expo Go build. These connection steps follow [Expo's device troubleshooting guide](https://docs.expo.dev/get-started/start-developing/) and [SDK mismatch guide](https://docs.expo.dev/troubleshooting/expo-go-version-mismatch/).
+Sign in to Expo, then from `mobile/` run `npx eas-cli@latest build --platform android --profile development`. Install the resulting APK on the phone, start Metro with `npx expo start --dev-client --lan`, and open the project in the installed SokoAI development app. A local alternative is `npx expo run:android --device` after installing Android Studio and its SDK. This model has not passed specimen-level field evaluation; no result grants permission to eat a mushroom.
+
+The bundled TFLite model SHA-256 is `eae277b24efa629b998d5f9c091da0576162cb1aad498786087acd001dc86d2c`. Its class map was generated from the same release's `taxonomy.csv` (SHA-256 `bd18483667d8a0ce7c1676ad4160a61589390ef090b0fb8092da50832dcecb69`). The official Android implementation uses 299×299 RGB float32 pixels in NHWC order, with channel values 0–255 for this model generation. The model's final layer is softmax. These scores are **uncalibrated** and must not be treated as probabilities of safety.
 
 ## Data needed for a commercial model
 
@@ -43,7 +45,7 @@ Useful starting points:
 
 | Source | Use for this commercial app |
 | --- | --- |
-| [iNaturalist observations/photos](https://www.inaturalist.org/pages/developers) | Candidate source after filtering each **photo** to CC0 or CC BY and checking provenance and expert labels. Its [default photo license is CC BY-NC](https://help.inaturalist.org/en/support/solutions/articles/151000169918), which is excluded. |
+| [iNaturalist observations/photos](https://www.inaturalist.org/pages/terms) | **Exclude from commercial AI training** under its current Terms of Use, which prohibit using any iNaturalist data to train commercial AI, even when individual photos have permissive licenses. Obtain explicit permission before considering this source. Its separately [released model-files repository](https://github.com/inaturalist/model-files) carries an MIT license for the small pretrained model bundled here. |
 | [GBIF occurrence media](https://techdocs.gbif.org/en/data-publishing/multimedia-publishing) | Candidate discovery source; the media license can differ from the occurrence license. Verify each image separately. |
 | [Danish Fungi 2020/2024](https://github.com/BohemianVRA/DanishFungiDataset/blob/main/README.md) | Strong research benchmark, but its authors say the data and models are **noncommercial only**; exclude from commercial training unless separate permission is secured. |
 | [FungiTastic](https://github.com/BohemianVRA/FungiTastic) | Useful open-set and distribution-shift benchmark design. The repository’s code license does not establish rights to every underlying photo; exclude photos until their commercial terms are verified. |
@@ -57,19 +59,9 @@ specimen_id,observation_id,photo_path,view,species_id,toxicity,license,photograp
 
 `view` is `cap`, `underside`, or `base`; `unspecified` is accepted for training-only pilot photos. Every test specimen must have the three named views. `species_id=__none__` denotes a non-mushroom. The catalog is a JSON array of objects with `id`, `scientificName`, `toxicity` (`poisonous`, `edible`, `unknown`), and a `toxicitySource` for any edible/poisonous label. Optional `commonName` and `nutrition` may be included. Nutrition needs `sourceId`, `caloriesKcal`, `proteinG`, `carbsG`, and `fatG` per 100 g. IDs must exactly match between CSV and catalog. Only test specimens may have species IDs absent from the trained catalog.
 
-### CC0 pilot run
+### Retired research pilot
 
-`ml.collect_inat` downloads one CC0 photo per exact-species, research-grade iNaturalist observation and saves the source response and per-photo provenance. CC0 is a public-domain dedication, so the pilot does not rely on noncommercial or attribution-restricted photo licenses. The four mushroom species and a tree negative control are only a pipeline check. Community identifications are not expert-verified specimen labels, observation IDs do not prove two observations depict different physical specimens, and the photos have no verified cap/underside/base views. The pilot has no untouched test set and cannot support a likely-edible verdict.
-
-```bash
-python -m ml.collect_inat --per-class 100 --output ml/data/inat-500
-python -m ml.audit_pilot --manifest ml/data/inat-500/manifest.csv --output ml/reports/inat-500-audit.json
-python -m ml.train --manifest ml/data/inat-500/manifest.csv --catalog ml/data/inat-500/catalog.json --output ml/runs/inat-500-small --backbone small_cnn --epochs 25 --workers 0 --accelerator cpu
-python -m ml.pilot_report --manifest ml/data/inat-500/manifest.csv --checkpoint ml/runs/inat-500-small/checkpoints/best.ckpt --species-ids ml/runs/inat-500-small/species_ids.json --output ml/reports/inat-500-small.json
-python -m ml.export --run ml/runs/inat-500-small --checkpoint ml/runs/inat-500-small/checkpoints/best.ckpt --catalog ml/data/inat-500/catalog.json --output ml/models/inat-500-pilot
-```
-
-The collector saves photos and provenance under ignored `ml/data/`, training checkpoints under ignored `ml/runs/`, validation diagnostics under ignored `ml/reports/`, and an ONNX preview under ignored `ml/models/`. The audit flags close visual matches across splits for manual review; it does not establish that observations are different physical specimens. The small CNN uses GroupNorm so it can learn from scratch on this limited pilot. Its JavaScript weights are exported to `mobile/assets/pilot-weights.bin` with `python -m ml.export_expo_preview`; the ONNX preview is not installed. The pilot report uses a 0.5 threshold on uncalibrated single-photo scores and cannot establish eating safety. For Lightning.ai, clone this repository into a Studio, install `ml/requirements.txt`, and run the same collector and training commands there; choose a GPU after reviewing Studio usage costs and change `--accelerator` to `gpu`.
+The earlier four-species research pilot and its weights were removed from the mobile bundle. Its community-labeled, single-view photos were inadequate for eating-safety evaluation. The `ml.collect_inat` research collector remains in source history for reproducibility, but its output must not be used for commercial training under current iNaturalist Terms. Use independently sourced, commercially cleared, expert-labeled specimens for future training. For Lightning.ai, clone this repository into a Studio, install `ml/requirements.txt`, and train on that cleared dataset.
 
 ## CNN choice and Lightning.ai workflow
 
