@@ -1,6 +1,6 @@
 # SokoAI
 
-An offline iOS and Android mushroom field guide with a three-photo camera flow. This repository contains the mobile app and a reproducible Lightning/PyTorch training and evaluation pipeline. **No trained model or mushroom photo dataset is included.** Until a real model is installed, the app opens the camera but makes no identification or eating-risk prediction. Its `likelyEdible` verdict is disabled by default.
+An offline iOS and Android mushroom field guide with a three-photo camera flow. This repository contains the mobile app and a reproducible Lightning/PyTorch training and evaluation pipeline. A small **experimental four-species pilot model** is bundled for Expo Go testing. It can suggest a species when all three views agree, or return “Unknown” / “Not detected.” It cannot assess eating safety; its `likelyEdible` verdict is disabled. The full mushroom photo dataset is not bundled.
 
 ## What the app does
 
@@ -26,11 +26,11 @@ npm ci
 npx expo start
 ```
 
-This app uses `onnxruntime-react-native`, so camera/model testing requires an Expo **development build** rather than Expo Go. The current app has no trained model, so the camera flow ends with “Analysis unavailable.” The bundle is configured for iOS and Android, but a signed device build has not been produced here. See [Expo development builds](https://docs.expo.dev/develop/development-builds/introduction/) and [EAS Build](https://docs.expo.dev/build/introduction/) for the device setup.
+Expo Go runs the bundled pilot using a JavaScript-only CNN interpreter on the phone. After the weights have been downloaded with the Expo bundle, inference needs no network. A future validated ONNX model will use `onnxruntime-react-native` and require an Expo **development build**. The bundle is configured for iOS and Android, but a signed device build has not been produced here. See [Expo development builds](https://docs.expo.dev/develop/development-builds/introduction/) and [EAS Build](https://docs.expo.dev/build/introduction/) for the device setup.
 
 ### Preview on Android with Expo Go
 
-For the current camera and screen preview, install the **SDK 57** Android build of [Expo Go](https://expo.dev/go), then run `npx expo start --go --clear` in `mobile/` and scan the new QR code inside Expo Go. Expo Go cannot test the ONNX native runtime once a model is installed. If the phone cannot reach the project, keep phone and computer on the same Wi-Fi network; if that fails, restart with `npx expo start --go --tunnel --clear` and scan the new QR code. A blue error screen may also reflect an SDK mismatch: check the detailed message and use the matching Expo Go build. These connection steps follow [Expo's device troubleshooting guide](https://docs.expo.dev/get-started/start-developing/) and [SDK mismatch guide](https://docs.expo.dev/troubleshooting/expo-go-version-mismatch/).
+For the experimental species preview, install the **SDK 57** Android build of [Expo Go](https://expo.dev/go), then run `npx expo start --go --lan --clear` in `mobile/` and scan the new QR code inside Expo Go. Keep the phone and computer on the same Wi-Fi or hotspot. The first analysis downloads the 3 MB pilot weights from Metro; subsequent inference runs on the phone. The pilot was trained on single-view community-labeled photos of four species plus a tree control, not expert-verified three-view specimens. Its validation species accuracy was 40/60 photos at 224 pixels and 39/60 at the 96-pixel preview size. It has no independent poisonous-specimen safety evaluation, so every possible match says **“Uncertain — do not eat.”** Expo Go cannot test the ONNX native runtime once a validated model is installed. A blue error screen may also reflect an SDK mismatch: check the detailed message and use the matching Expo Go build. These connection steps follow [Expo's device troubleshooting guide](https://docs.expo.dev/get-started/start-developing/) and [SDK mismatch guide](https://docs.expo.dev/troubleshooting/expo-go-version-mismatch/).
 
 ## Data needed for a commercial model
 
@@ -69,7 +69,7 @@ python -m ml.pilot_report --manifest ml/data/inat-500/manifest.csv --checkpoint 
 python -m ml.export --run ml/runs/inat-500-small --checkpoint ml/runs/inat-500-small/checkpoints/best.ckpt --catalog ml/data/inat-500/catalog.json --output ml/models/inat-500-pilot
 ```
 
-The collector saves photos and provenance under ignored `ml/data/`, training checkpoints under ignored `ml/runs/`, validation diagnostics under ignored `ml/reports/`, and an ONNX preview under ignored `ml/models/`. The audit flags close visual matches across splits for manual review; it does not establish that observations are different physical specimens. None of these artifacts is installed in the app. The small CNN uses GroupNorm so it can learn from scratch on this limited pilot. The pilot report uses a 0.5 threshold on uncalibrated single-photo scores and cannot establish eating safety. For Lightning.ai, clone this repository into a Studio, install `ml/requirements.txt`, and run the same collector and training commands there; choose a GPU after reviewing Studio usage costs and change `--accelerator` to `gpu`.
+The collector saves photos and provenance under ignored `ml/data/`, training checkpoints under ignored `ml/runs/`, validation diagnostics under ignored `ml/reports/`, and an ONNX preview under ignored `ml/models/`. The audit flags close visual matches across splits for manual review; it does not establish that observations are different physical specimens. The small CNN uses GroupNorm so it can learn from scratch on this limited pilot. Its JavaScript weights are exported to `mobile/assets/pilot-weights.bin` with `python -m ml.export_expo_preview`; the ONNX preview is not installed. The pilot report uses a 0.5 threshold on uncalibrated single-photo scores and cannot establish eating safety. For Lightning.ai, clone this repository into a Studio, install `ml/requirements.txt`, and run the same collector and training commands there; choose a GPU after reviewing Studio usage costs and change `--accelerator` to `gpu`.
 
 ## CNN choice and Lightning.ai workflow
 

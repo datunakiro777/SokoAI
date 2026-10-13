@@ -53,7 +53,7 @@ export default function HomeScreen() {
         <View style={styles.hero}>
           <Text style={styles.eyebrow}>EXPLORE WITH CARE</Text>
           <Text style={styles.heroTitle}>A closer look at what you found.</Text>
-          <Text style={styles.heroBody}>Photograph the cap, underside, and stem. SokoAI compares all three views to identify a mushroom and assess eating risk.</Text>
+          <Text style={styles.heroBody}>Photograph the cap, underside, and stem. The experimental model compares all three views for a possible species match.</Text>
           <View style={styles.heroIllustration}>
             <Text style={styles.heroMushroom}>🍄</Text>
             <View style={styles.heroRing} />
@@ -70,8 +70,8 @@ export default function HomeScreen() {
 
         {!modelReady && (
           <View style={styles.modelNotice}>
-            <Text style={styles.modelTitle}>Identification model pending validation</Text>
-            <Text style={styles.modelText}>The camera flow is ready. Eating-risk predictions stay unavailable until a trained model passes the independent poisonous-specimen safety gate.</Text>
+            <Text style={styles.modelTitle}>Experimental species preview</Text>
+            <Text style={styles.modelText}>A small pilot model can suggest one of four species. It is unvalidated and cannot tell you that any mushroom is safe to eat.</Text>
           </View>
         )}
 
@@ -99,7 +99,7 @@ export default function HomeScreen() {
         </Pressable>
 
         <Pressable style={styles.startButton} onPress={start}>
-          <Text style={styles.startText}>{modelReady ? 'Start identification' : 'Open camera preview'}</Text>
+          <Text style={styles.startText}>{modelReady ? 'Start identification' : 'Try species preview'}</Text>
           <Text style={styles.startArrow}>↗</Text>
         </Pressable>
         <Text style={styles.footer}>Focused on Georgia and the Caucasus · English beta</Text>

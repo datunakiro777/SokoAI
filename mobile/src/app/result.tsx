@@ -53,19 +53,28 @@ export default function ResultScreen() {
           {result && <Text style={styles.reason}>{result.reason}</Text>}
         </View>
 
-        {result?.species && (
-          <View style={styles.card}>
-            <Text style={styles.label}>LIKELY SPECIES</Text>
-            <Text style={styles.speciesName}>{result.species.commonName || result.species.scientificName}</Text>
-            {result.species.commonName && <Text style={styles.latin}>{result.species.scientificName}</Text>}
-            <View style={styles.divider} />
-            <Text style={styles.fieldLabel}>Reference edibility</Text>
-            <Text style={styles.fieldValue}>{result.species.toxicity === 'poisonous' ? 'Poisonous' : result.species.toxicity === 'edible' ? 'Listed as edible' : 'Unknown'}</Text>
-            {result.species.toxicitySource && <Text style={styles.source}>Source: {result.species.toxicitySource}</Text>}
+        {result?.pilot && (
+          <View style={styles.pilotNotice}>
+            <Text style={styles.pilotTitle}>EXPERIMENTAL MODEL</Text>
+            <Text style={styles.pilotText}>This model knows only four species and has not passed safety validation. A match can be wrong. Eating risk: uncertain — do not eat.</Text>
           </View>
         )}
 
-        {result && result.kind !== 'notDetected' && (
+        {result?.species && (
+          <View style={styles.card}>
+            <Text style={styles.label}>{result.pilot ? 'POSSIBLE SPECIES · EXPERIMENTAL' : 'LIKELY SPECIES'}</Text>
+            <Text style={styles.speciesName}>{result.species.commonName || result.species.scientificName}</Text>
+            {result.species.commonName && <Text style={styles.latin}>{result.species.scientificName}</Text>}
+            {!result.pilot && <>
+              <View style={styles.divider} />
+              <Text style={styles.fieldLabel}>Reference edibility</Text>
+              <Text style={styles.fieldValue}>{result.species.toxicity === 'poisonous' ? 'Poisonous' : result.species.toxicity === 'edible' ? 'Listed as edible' : 'Unknown'}</Text>
+              {result.species.toxicitySource && <Text style={styles.source}>Source: {result.species.toxicitySource}</Text>}
+            </>}
+          </View>
+        )}
+
+        {result && !result.pilot && result.kind !== 'notDetected' && (
           <View style={styles.card}>
             <Text style={styles.label}>MODEL CONFIDENCE</Text>
             {result.speciesConfidence !== undefined && (
@@ -125,6 +134,9 @@ const styles = StyleSheet.create({
   errorText: { color: colors.red, fontSize: 12, textAlign: 'center', marginTop: 15, lineHeight: 18 },
   reason: { color: colors.muted, fontSize: 12, textAlign: 'center', marginTop: 13, lineHeight: 18 },
   card: { backgroundColor: colors.paper, borderRadius: 20, padding: 19, marginBottom: 14 },
+  pilotNotice: { backgroundColor: colors.amberPale, borderRadius: 18, padding: 17, marginBottom: 14 },
+  pilotTitle: { color: '#69451F', fontSize: 11, fontWeight: '900', letterSpacing: 1.2 },
+  pilotText: { color: '#765B3D', fontSize: 12, lineHeight: 18, marginTop: 6 },
   label: { color: colors.sage, fontSize: 10, fontWeight: '900', letterSpacing: 1.7, marginBottom: 10 },
   speciesName: { color: colors.text, fontSize: 22, fontWeight: '800' },
   latin: { color: colors.muted, fontSize: 13, fontStyle: 'italic', marginTop: 3 },

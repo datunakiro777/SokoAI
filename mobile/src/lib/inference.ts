@@ -1,9 +1,13 @@
 import { Asset } from 'expo-asset';
+import { File } from 'expo-file-system';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { toByteArray } from 'base64-js';
 import jpeg from 'jpeg-js';
 import { decide, DEFAULT_DECISION_CONFIG, type Decision, type ViewScore } from './decision';
 import { modelAsset, modelMetadata } from './modelBundle';
+import { runPilotCnn } from './pilotCnn';
+import { pilotModel, pilotWeightsAsset } from './pilotModelBundle';
+import { decidePilot } from './pilotDecision';
 
 export type Photo = { uri: string; width: number; height: number };
 
@@ -21,7 +25,7 @@ function softmax(values: number[], temperature: number): number[] {
   return exponents.map((value) => value / sum);
 }
 
-async function photoTensor(photo: Photo): Promise<{ data: Float32Array; qualityPass: boolean }> {
+async function photoTensor(photo: Photo, imageSize = IMAGE_SIZE): Promise<{ data: Float32Array; qualityPass: boolean }> {
   const side = Math.min(photo.width, photo.height);
   const image = ImageManipulator.ImageManipulator.manipulate(photo.uri);
   image.crop({
@@ -30,16 +34,16 @@ async function photoTensor(photo: Photo): Promise<{ data: Float32Array; qualityP
     width: side,
     height: side,
   });
-  image.resize({ width: IMAGE_SIZE, height: IMAGE_SIZE });
+  image.resize({ width: imageSize, height: imageSize });
   const rendered = await image.renderAsync();
   const saved = await rendered.saveAsync({ format: ImageManipulator.SaveFormat.JPEG, base64: true, compress: 0.95 });
   if (!saved.base64) throw new Error('Image preprocessing failed.');
 
   const decoded = jpeg.decode(toByteArray(saved.base64), { useTArray: true });
-  if (decoded.width !== IMAGE_SIZE || decoded.height !== IMAGE_SIZE) {
+  if (decoded.width !== imageSize || decoded.height !== imageSize) {
     throw new Error('Unexpected image dimensions.');
   }
-  const pixels = IMAGE_SIZE * IMAGE_SIZE;
+  const pixels = imageSize * imageSize;
   const tensor = new Float32Array(pixels * 3);
   let luminanceSum = 0;
   let luminanceSquares = 0;
@@ -62,9 +66,45 @@ async function photoTensor(photo: Photo): Promise<{ data: Float32Array; qualityP
   return { data: tensor, qualityPass };
 }
 
-export async function analyzePhotos(photos: Photo[], inRegion: boolean): Promise<Decision | null> {
+let pilotWeightsPromise: Promise<Float32Array> | null = null;
+
+async function loadPilotWeights(): Promise<Float32Array> {
+  if (!pilotWeightsPromise) {
+    pilotWeightsPromise = (async () => {
+      const asset = await Asset.fromModule(pilotWeightsAsset).downloadAsync();
+      if (!asset.localUri) throw new Error('The pilot model weights are missing.');
+      const buffer = await new File(asset.localUri).arrayBuffer();
+      const weights = new Float32Array(buffer);
+      if (weights.length !== pilotModel.floatCount) throw new Error('The pilot model weights are incomplete.');
+      return weights;
+    })().catch((error) => {
+      pilotWeightsPromise = null;
+      throw error;
+    });
+  }
+  return pilotWeightsPromise;
+}
+
+async function analyzePilot(photos: Photo[]): Promise<Decision> {
+  const weights = await loadPilotWeights();
+  const views: ViewScore[] = [];
+  for (const photo of photos) {
+    // A smaller input keeps this JavaScript-only preview responsive in Expo Go.
+    const { data, qualityPass } = await photoTensor(photo, 96);
+    const logits = await runPilotCnn(data, weights, pilotModel, 96);
+    views.push({
+      presence: sigmoid(logits.presence),
+      toxic: sigmoid(logits.toxic),
+      species: softmax(logits.species, 1),
+      qualityPass,
+    });
+  }
+  return decidePilot(views, pilotModel.species);
+}
+
+export async function analyzePhotos(photos: Photo[], inRegion: boolean): Promise<Decision> {
   if (photos.length !== 3) throw new Error('Three photos are required.');
-  if (!modelAsset || !modelMetadata.species.length) return null;
+  if (!modelAsset || !modelMetadata.species.length) return analyzePilot(photos);
 
   const asset = await Asset.fromModule(modelAsset).downloadAsync();
   if (!asset.localUri) throw new Error('The offline model is missing.');

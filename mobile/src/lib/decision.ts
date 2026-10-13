@@ -44,6 +44,7 @@ export const DEFAULT_DECISION_CONFIG: DecisionConfig = {
 
 export type Decision = {
   kind: 'notDetected' | 'unknown' | 'notSafe' | 'likelyEdible' | 'uncertain';
+  pilot?: true;
   species?: Species;
   speciesConfidence?: number;
   toxicProbability?: number;

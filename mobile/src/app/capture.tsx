@@ -33,7 +33,7 @@ export default function CaptureScreen() {
       if (next.length === 3) {
         const decision = await analyzePhotos(next, inRegion);
         setResult(decision);
-        setAnalysisError(decision ? null : 'The identification model has not passed validation yet. No eating-risk prediction was made.');
+        setAnalysisError(null);
         router.replace('/result');
       }
     } catch (error) {
