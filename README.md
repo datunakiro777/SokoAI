@@ -26,11 +26,11 @@ npm ci
 npx expo start --dev-client
 ```
 
-The model uses native TensorFlow Lite through `react-native-fast-tflite`, so it requires an Expo **development build** or production build. Expo Go cannot run it. Once the app and model assets are installed, inference does not need network access. The native Android configuration was generated successfully, but a signed device build has not been produced in this workspace: Expo CLI was not logged in, and the Mac has no Android SDK. See [Expo development builds](https://docs.expo.dev/develop/development-builds/introduction/) for the device setup.
+The model uses native TensorFlow Lite through `react-native-fast-tflite`, so Expo Go cannot run it. The installed test APK contains the model; inference does not need network access. A development build needs Metro for its JavaScript during testing, while the `preview` APK bundles the JavaScript too. See [Expo development builds](https://docs.expo.dev/develop/development-builds/introduction/) for the device setup.
 
-### Android development build
+### Android test builds
 
-Sign in to Expo, then from `mobile/` run `npx eas-cli@latest build --platform android --profile development`. Install the resulting APK on the phone, start Metro with `npx expo start --dev-client --lan`, and open the project in the installed SokoAI development app. A local alternative is `npx expo run:android --device` after installing Android Studio and its SDK. This model has not passed specimen-level field evaluation; no result grants permission to eat a mushroom.
+For a standalone test install, run `npx eas-cli@latest build --platform android --profile preview` from `mobile/`, then install the APK from its Expo build page. It opens without Expo Go or Metro. For live editing, build the `development` profile instead, install that APK, start Metro with `npx expo start --dev-client --lan`, and open the project in SokoAI. A local alternative is `npx expo run:android --device` after installing Android Studio and its SDK. This model has not passed specimen-level field evaluation; no result grants permission to eat a mushroom.
 
 The bundled TFLite model SHA-256 is `eae277b24efa629b998d5f9c091da0576162cb1aad498786087acd001dc86d2c`. Its class map was generated from the same release's `taxonomy.csv` (SHA-256 `bd18483667d8a0ce7c1676ad4160a61589390ef090b0fb8092da50832dcecb69`). The official Android implementation uses 299×299 RGB float32 pixels in NHWC order, with channel values 0–255 for this model generation. The model's final layer is softmax. These scores are **uncalibrated** and must not be treated as probabilities of safety.
 
@@ -85,13 +85,13 @@ python -m ml.evaluate --manifest ml/data/manifest.csv --model-dir ml/models/v1 -
 
 `ml.evaluate` performs one candidate-rule evaluation on the untouched test split and records specimen-level decisions, per-poisonous-species results, look-alike errors, unfamiliar-species errors, non-mushroom errors, edible coverage, and unknown/uncertain rate. If you inspect test decisions and change the model, catalog, calibration, or thresholds, that set is no longer untouched; collect a new independent test set.
 
-For a development build after an evaluated model is available:
+The `ml.install_model` command packages a future ONNX candidate for review:
 
 ```bash
 python -m ml.install_model --model-dir ml/models/v1 --report ml/reports/v1.json --mobile-dir mobile --preview
 ```
 
-The preview bundle always keeps `likelyEdible` off. Omitting `--preview` is allowed only when the report matches the ONNX/model metadata, the Python and mobile decision code, the mobile preprocessing code, and the release gate. Run a full camera-to-ONNX parity check and latency test on both target phones before any commercial build.
+The current mobile app runs only the pretrained TFLite preview and does not load this ONNX candidate. Native ONNX integration, matching preprocessing, and full camera-to-model parity and latency checks on both target phones are still required before a trained candidate can be used in the app. The `likelyEdible` verdict stays disabled until the independent release gate is met.
 
 ## Release metric
 
