@@ -1,3 +1,4 @@
+import { Asset } from 'expo-asset';
 import Constants from 'expo-constants';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { toByteArray } from 'base64-js';
@@ -20,7 +21,12 @@ async function loadPretrainedModel(): Promise<TfliteModel> {
       const { loadTensorflowModel } = await import('react-native-fast-tflite');
       // Metro needs a static require to package this local model asset.
       // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const model = await loadTensorflowModel(require('../../assets/inat-small-v25.01.15.tflite'), []);
+      const asset = Asset.fromModule(require('../../assets/inat-small-v25.01.15.tflite'));
+      // Release APKs bundle the model as an Android resource, not a URL that TFLite can read.
+      // expo-asset copies it to a file:// path first.
+      await asset.downloadAsync();
+      if (!asset.localUri) throw new Error('The pretrained model file could not be prepared.');
+      const model = await loadTensorflowModel({ url: asset.localUri }, []);
       const input = model.inputs[0];
       const output = model.outputs[0];
       if (model.inputs.length !== 1 || input.dataType !== 'float32'

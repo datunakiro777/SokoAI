@@ -1,0 +1,131 @@
+diff --git a/node_modules/react-native-fast-tflite/cpp/HybridTfliteModel.cpp b/node_modules/react-native-fast-tflite/cpp/HybridTfliteModel.cpp
+index 1a7a3c4..e473ae0 100644
+--- a/node_modules/react-native-fast-tflite/cpp/HybridTfliteModel.cpp
++++ b/node_modules/react-native-fast-tflite/cpp/HybridTfliteModel.cpp
+@@ -24,7 +24,7 @@ HybridTfliteModel::HybridTfliteModel(TfLiteInterpreter* interpreter,
+   if (status != kTfLiteOk) {
+     throw std::runtime_error(
+         "TFLite: Failed to allocate memory for input/output tensors! Status: " +
+-        tfLiteStatusToString(status));
++        tfLiteStatusToString(status) + takeTfliteErrors());
+   }
+ }
+ 
+@@ -95,7 +95,13 @@ void HybridTfliteModel::copyInputBuffers(const std::vector<std::shared_ptr<Array
+   for (int32_t i = 0; i < inputCount; i++) {
+     TfLiteTensor* tensor = TfLiteInterpreterGetInputTensor(_interpreter, i);
+     const std::shared_ptr<ArrayBuffer>& buffer = input[i];
+-    TfLiteTensorCopyFromBuffer(tensor, buffer->data(), buffer->size());
++    TfLiteStatus status = TfLiteTensorCopyFromBuffer(tensor, buffer->data(), buffer->size());
++    if (status != kTfLiteOk) [[unlikely]] {
++      throw std::runtime_error("TFLite: Failed to copy input " + std::to_string(i) + " (" +
++                               std::to_string(buffer->size()) + " bytes, tensor needs " +
++                               std::to_string(TfLiteTensorByteSize(tensor)) + ")!" +
++                               takeTfliteErrors());
++    }
+   }
+ }
+ 
+@@ -137,10 +143,11 @@ std::vector<std::shared_ptr<ArrayBuffer>> HybridTfliteModel::copyOutputBuffers()
+ }
+ 
+ void HybridTfliteModel::invoke() {
++  takeTfliteErrors();
+   TfLiteStatus status = TfLiteInterpreterInvoke(_interpreter);
+   if (status != kTfLiteOk) {
+     throw std::runtime_error("TFLite: Failed to run TFLite Model! Status: " +
+-                             tfLiteStatusToString(status));
++                             tfLiteStatusToString(status) + takeTfliteErrors());
+   }
+ }
+ 
+diff --git a/node_modules/react-native-fast-tflite/cpp/HybridTfliteModule.cpp b/node_modules/react-native-fast-tflite/cpp/HybridTfliteModule.cpp
+index 38c82d1..859eb1b 100644
+--- a/node_modules/react-native-fast-tflite/cpp/HybridTfliteModule.cpp
++++ b/node_modules/react-native-fast-tflite/cpp/HybridTfliteModule.cpp
+@@ -40,6 +40,7 @@ HybridTfliteModule::createModel(const std::shared_ptr<ArrayBuffer>& modelData,
+ 
+   // Configure interpreter via options
+   TfLiteInterpreterOptions* options = TfLiteInterpreterOptionsCreate();
++  TfLiteInterpreterOptionsSetErrorReporter(options, tfliteErrorReporter, nullptr);
+ 
+   // Add all hardware accelerated delegates (e.g. GPU, NPU, ...)
+   // if any. The default CPU delegate will always be available.
+@@ -57,7 +58,7 @@ HybridTfliteModule::createModel(const std::shared_ptr<ArrayBuffer>& modelData,
+   TfLiteModelDelete(model);
+ 
+   if (interpreter == nullptr) {
+-    throw std::runtime_error("Failed to create TFLite interpreter!");
++    throw std::runtime_error("Failed to create TFLite interpreter!" + takeTfliteErrors());
+   }
+ 
+   // Wrap in HybridTfliteModel — stores shared_ptr<ArrayBuffer> to keep model data bytes alive
+diff --git a/node_modules/react-native-fast-tflite/cpp/TfliteHelpers.cpp b/node_modules/react-native-fast-tflite/cpp/TfliteHelpers.cpp
+index 9f931f9..a327390 100644
+--- a/node_modules/react-native-fast-tflite/cpp/TfliteHelpers.cpp
++++ b/node_modules/react-native-fast-tflite/cpp/TfliteHelpers.cpp
+@@ -13,8 +13,40 @@
+ #error "Invalid Platform!"
+ #endif
+ 
++#include <cstdio>
++#include <mutex>
++#if defined(ANDROID)
++#include <android/log.h>
++#endif
++
+ namespace margelo::nitro::tflite {
+ 
++static std::mutex tfliteErrorsMutex;
++static std::string tfliteErrors;
++
++void tfliteErrorReporter(void* /* userData */, const char* format, va_list args) {
++  char message[1024];
++  va_list argsCopy;
++  va_copy(argsCopy, args);
++  vsnprintf(message, sizeof(message), format, argsCopy);
++  va_end(argsCopy);
++#if defined(ANDROID)
++  __android_log_print(ANDROID_LOG_ERROR, "tflite", "%s", message);
++#endif
++  std::lock_guard<std::mutex> lock(tfliteErrorsMutex);
++  if (tfliteErrors.size() < 4096) {
++    if (!tfliteErrors.empty()) tfliteErrors += "\n";
++    tfliteErrors += message;
++  }
++}
++
++std::string takeTfliteErrors() {
++  std::lock_guard<std::mutex> lock(tfliteErrorsMutex);
++  std::string errors = std::move(tfliteErrors);
++  tfliteErrors.clear();
++  return errors.empty() ? "" : "\n" + errors;
++}
++
+ // TODO: Remove this, this doesn't seem like a good idea at all.
+ typedef float float32_t;
+ typedef double float64_t;
+diff --git a/node_modules/react-native-fast-tflite/cpp/TfliteHelpers.hpp b/node_modules/react-native-fast-tflite/cpp/TfliteHelpers.hpp
+index c6458e5..f977c00 100644
+--- a/node_modules/react-native-fast-tflite/cpp/TfliteHelpers.hpp
++++ b/node_modules/react-native-fast-tflite/cpp/TfliteHelpers.hpp
+@@ -1,6 +1,7 @@
+ #pragma once
+ 
+ #include "TensorDataType.hpp"
++#include <cstdarg>
+ #include <string>
+ 
+ #if defined(ANDROID)
+@@ -18,6 +19,11 @@ TensorDataType getTensorDataType(TfLiteType dataType);
+ size_t getTFLTensorDataTypeSize(TfLiteType dataType);
+ int getTensorTotalLength(const TfLiteTensor* tensor);
+ 
++// Collects TFLite error messages so they can be included in thrown errors.
++void tfliteErrorReporter(void* userData, const char* format, va_list args);
++// Returns the collected TFLite error messages and clears them.
++std::string takeTfliteErrors();
++
+ TfLiteDelegate* getCoreMLDelegate();
+ TfLiteDelegate* getMetalDelegate();
+ TfLiteDelegate* getNNAPIDelegate();
