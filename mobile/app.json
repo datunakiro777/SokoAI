@@ -40,7 +40,8 @@
           "recordAudioAndroid": false
         }
       ],
-      "react-native-fast-tflite"
+      "react-native-fast-tflite",
+      "expo-font"
     ],
     "extra": {
       "router": {},

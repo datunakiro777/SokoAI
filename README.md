@@ -15,6 +15,12 @@ The user takes one photo of a mushroom and may add up to two more angles (unders
 
 The camera and results screen display a warning. Match scores are **uncalibrated**: they are not the chance a match is correct and never a poison probability. A [clinical study of mushroom identification apps](https://pubmed.ncbi.nlm.nih.gov/36794335/) found that photo-based apps could not reliably exclude poisonous mushrooms. The app does not upload photos or coordinates.
 
+### History and species information
+
+Every check is saved on the phone (`mobile/src/lib/history.ts`): its photos are copied into the app's document folder next to a JSON index, and the History screen lists them newest first. Nothing leaves the phone; deleting the app deletes the history.
+
+Each species and each closest match opens a species page with its classification (kingdom to species, from TreeOfLife-200M), the toxicity this app can cite, and the introduction of its English Wikipedia article, or its genus's article when the species has none. The introductions come from the [2023-11-01 Wikipedia dump](https://huggingface.co/datasets/wikimedia/wikipedia) (CC BY-SA; the app credits each article and links to it) and are bundled for offline use. Rebuild them with `python -m ml.export_fungi_info --names txt_emb_species.json --mobile-dir mobile`. A missing toxicity record never means a species is safe.
+
 ### Measured behavior
 
 Measured on held-out [Danish Fungi 2024](https://huggingface.co/datasets/maxvonk/danish-fungi-2024-pairs-800px) photos (expert-labelled, but only six common genera, and BioCLIP 2 may have seen some of these photos during training, so real-world accuracy is likely lower):
@@ -43,6 +49,8 @@ The bundled model is BioCLIP 2's ViT-L/14 image encoder plus a fixed matrix of f
 ## Model provenance
 
 [BioCLIP 2](https://huggingface.co/imageomics/bioclip-2) is MIT-licensed. It was trained on TreeOfLife-200M, which draws on GBIF, EOL, BIOSCAN-5M and FathomNet images; confirm that this provenance meets your commercial requirements. The species text embeddings come from [TreeOfLife-200M](https://huggingface.co/datasets/imageomics/TreeOfLife-200M) (CC0). The [Danish Fungi](https://github.com/BohemianVRA/DanishFungiDataset/blob/main/README.md) photos used to measure accuracy are licensed for noncommercial use only and are not part of the app.
+
+The interface uses [Host Grotesk](https://fonts.google.com/specimen/Host+Grotesk) (SIL Open Font License), bundled through `@expo-google-fonts/host-grotesk`.
 
 The earlier iNaturalist preview model, the research pilot, and the untrained ONNX training pipeline were removed; they remain in git history before this change.
 

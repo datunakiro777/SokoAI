@@ -1,16 +1,34 @@
-import { router } from 'expo-router';
+import { useCallback, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
 import Constants from 'expo-constants';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { FUNGI_MODEL_SHA256, FUNGI_SPECIES_COUNT } from '../lib/fungiModel';
+import { loadHistory } from '../lib/history';
 import { MODEL_LICENSE } from '../lib/modelLicense';
-import { FUNGI_MODEL_SHA256 } from '../lib/fungiModel';
 import { useScan } from '../state/ScanContext';
-import { colors } from '../ui/theme';
+import { Body, Button, Display, ItemTitle, Label, Lead, Meta, Rule, Section, TextLink } from '../ui/components';
+import { RAIL_BREAKPOINT, colors, displaySize, fonts, gutter, rule } from '../ui/theme';
 
 const expoGo = Constants.appOwnership === 'expo';
+const speciesCount = FUNGI_SPECIES_COUNT.toLocaleString('en-US');
+
+const steps = [
+  ['01', 'Photograph', 'One mushroom, cap and stem from the side, filling the frame.'],
+  ['02', 'Add angles', 'Optional: the underside and the base help separate look-alikes.'],
+  ['03', 'Read the matches', 'A species or genus when the match is strong, and the closest three either way.'],
+];
 
 export default function HomeScreen() {
   const { reset } = useScan();
+  const { width } = useWindowDimensions();
+  const wide = width >= RAIL_BREAKPOINT;
+  const pad = gutter(width);
+  const [checks, setChecks] = useState<number | null>(null);
+
+  useFocusEffect(useCallback(() => {
+    loadHistory().then((entries) => setChecks(entries.length), () => setChecks(null));
+  }, []));
 
   function start() {
     if (expoGo) {
@@ -23,99 +41,97 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-      <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.brandRow}>
-          <View style={styles.brandIcon}><Text style={styles.brandEmoji}>🍄</Text></View>
-          <View><Text style={styles.brand}>SokoAI</Text><Text style={styles.brandSub}>MUSHROOM FIELD GUIDE</Text></View>
-          <View style={styles.offlinePill}><Text style={styles.offlineText}>● OFFLINE</Text></View>
+      <ScrollView contentContainerStyle={styles.scroll}>
+        <View style={[styles.masthead, { paddingHorizontal: pad }]}>
+          <Label style={styles.brand}>SokoAI</Label>
+          <Label>Offline field guide</Label>
         </View>
+        <Rule />
 
-        <View style={styles.hero}>
-          <Text style={styles.eyebrow}>EXPLORE WITH CARE</Text>
-          <Text style={styles.heroTitle}>A closer look at what you found.</Text>
-          <Text style={styles.heroBody}>Take one clear photo. The offline model compares it with 51,406 fungal species from around the world.</Text>
-          <View style={styles.heroIllustration}>
-            <Text style={styles.heroMushroom}>🍄</Text>
-            <View style={styles.heroRing} />
+        <View style={[{ paddingHorizontal: pad, paddingTop: 22, paddingBottom: 30 }, wide && styles.openingWide]}>
+          <View style={wide ? styles.openingStatement : undefined}>
+            <Label>01 — Identify</Label>
+            <Display size={displaySize(width)} style={[styles.opening, { marginBottom: Math.round(displaySize(width) * 0.12) }]}>Find the fungus.</Display>
+            <Lead>Take one clear photo. SokoAI compares it with {speciesCount} fungal species from around the world, on this phone, without a connection.</Lead>
+          </View>
+          <View style={[styles.actions, wide && styles.actionsWide]}>
+            <Button label={expoGo ? 'Development build needed' : 'Start identification'} onPress={start} />
+            <Button
+              label={checks ? `History · ${checks} check${checks === 1 ? '' : 's'}` : 'History'}
+              variant="secondary"
+              onPress={() => router.push('/history')}
+            />
           </View>
         </View>
 
-        <View style={styles.warning}>
-          <Text style={styles.warningIcon}>!</Text>
-          <View style={styles.warningBody}>
-            <Text style={styles.warningTitle}>Never eat based on an app result</Text>
-            <Text style={styles.warningText}>Photo identification can be wrong. Even a high confidence score does not prove a wild mushroom is safe to eat.</Text>
+        <Section index="02" title="Method" inverse>
+          {steps.map(([number, title, detail], position) => (
+            <View key={number} style={[styles.step, position > 0 && styles.stepRuled]}>
+              <Label inverse style={styles.stepNumber}>{number}</Label>
+              <View style={styles.stepBody}>
+                <ItemTitle inverse>{title}</ItemTitle>
+                <Body inverse style={styles.stepDetail}>{detail}</Body>
+              </View>
+            </View>
+          ))}
+        </Section>
+
+        <Section index="03" title="Safety" accent>
+          <ItemTitle>Never eat a mushroom based on an app result.</ItemTitle>
+          <Body style={styles.paragraph}>
+            Photo identification can be wrong, and look-alikes can be deadly. SokoAI never reports a mushroom as safe to eat. If one has been eaten and poisoning is possible, get emergency medical advice immediately.
+          </Body>
+        </Section>
+
+        <Section index="04" title="Model" surface>
+          <Body>
+            BioCLIP 2 runs on this phone and suggests likely species from {speciesCount} fungi. It has not been validated to tell you a mushroom is safe to eat. Species descriptions come from Wikipedia.
+          </Body>
+          <View style={styles.links}>
+            <TextLink label="Model credit and MIT license" onPress={() => Alert.alert('BioCLIP 2 model license', MODEL_LICENSE)} />
           </View>
-        </View>
+        </Section>
 
-        <View style={styles.modelNotice}>
-          <Text style={styles.modelTitle}>Experimental species preview</Text>
-          <Text style={styles.modelText}>{expoGo
-            ? 'Expo Go cannot run this offline model. Install the SokoAI development build to test species identification.'
-            : 'BioCLIP 2 runs on this phone and suggests likely species from 51,406 fungi worldwide. It has not been validated to tell you a mushroom is safe to eat.'}</Text>
-          <Pressable onPress={() => Alert.alert('BioCLIP 2 model license', MODEL_LICENSE)}>
-            <Text style={styles.modelLicense}>Model credit and MIT license</Text>
-          </Pressable>
-        </View>
-
-        <Text style={styles.sectionTitle}>One photo is enough. More angles help.</Text>
-        <View style={styles.steps}>
+        <Rule />
+        <View style={styles.footer}>
           {[
-            ['01', 'Mushroom', 'Cap and stem from the side'],
-            ['02', 'Underside', 'Optional: gills, pores, or ridges'],
-            ['03', 'Base', 'Optional: where the stem meets the ground'],
-          ].map(([number, title, detail]) => (
-            <View key={number} style={styles.step}>
-              <Text style={styles.stepNumber}>{number}</Text>
-              <View><Text style={styles.stepTitle}>{title}</Text><Text style={styles.stepDetail}>{detail}</Text></View>
+            ['App', 'SokoAI · English beta'],
+            ['Species', speciesCount],
+            ['Model', FUNGI_MODEL_SHA256.slice(0, 8)],
+            ['Text', 'Wikipedia, CC BY-SA'],
+          ].map(([title, value], position) => (
+            <View
+              key={title}
+              style={[styles.footerCell, { width: wide ? '25%' : '50%', paddingLeft: position % (wide ? 4 : 2) ? 12 : pad }, position % (wide ? 4 : 2) > 0 && styles.footerDivider]}
+            >
+              <Label>{title}</Label>
+              <Meta>{value}</Meta>
             </View>
           ))}
         </View>
-
-        <Pressable style={styles.startButton} onPress={start}>
-          <Text style={styles.startText}>{expoGo ? 'Development build needed' : 'Start identification'}</Text>
-          <Text style={styles.startArrow}>↗</Text>
-        </Pressable>
-        <Text style={styles.footer}>Worldwide fungi · species preview · English beta · model {FUNGI_MODEL_SHA256.slice(0, 8)}</Text>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.cream },
-  content: { padding: 22, paddingBottom: 36 },
-  brandRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 22 },
-  brandIcon: { width: 47, height: 47, borderRadius: 16, backgroundColor: '#E2E9D9', alignItems: 'center', justifyContent: 'center', marginRight: 10 },
-  brandEmoji: { fontSize: 25 },
-  brand: { color: colors.pine, fontSize: 23, fontWeight: '800', letterSpacing: -0.7 },
-  brandSub: { color: colors.sage, fontSize: 9, fontWeight: '800', letterSpacing: 1.8 },
-  offlinePill: { marginLeft: 'auto', backgroundColor: '#E4EDDF', paddingHorizontal: 10, paddingVertical: 7, borderRadius: 14 },
-  offlineText: { color: colors.forest, fontSize: 10, fontWeight: '800', letterSpacing: 0.6 },
-  hero: { backgroundColor: colors.pine, borderRadius: 28, minHeight: 310, padding: 25, overflow: 'hidden' },
-  eyebrow: { color: '#A7C69A', fontSize: 11, fontWeight: '800', letterSpacing: 2.2, marginBottom: 12 },
-  heroTitle: { color: '#FAF9F1', fontSize: 34, lineHeight: 37, letterSpacing: -1.1, fontWeight: '700', width: '76%' },
-  heroBody: { color: '#D0DED3', fontSize: 14, lineHeight: 21, marginTop: 13, width: '72%' },
-  heroIllustration: { position: 'absolute', right: -18, bottom: -10, width: 155, height: 180, alignItems: 'center', justifyContent: 'center' },
-  heroMushroom: { fontSize: 104, zIndex: 1 },
-  heroRing: { width: 155, height: 155, borderColor: '#7DA284', borderWidth: 1, borderRadius: 100, position: 'absolute', opacity: 0.5 },
-  warning: { flexDirection: 'row', backgroundColor: colors.amberPale, borderRadius: 20, padding: 17, marginTop: 18, alignItems: 'flex-start' },
-  warningIcon: { backgroundColor: colors.amber, color: 'white', overflow: 'hidden', borderRadius: 15, width: 27, height: 27, textAlign: 'center', lineHeight: 27, fontWeight: '900', marginRight: 12 },
-  warningBody: { flex: 1 },
-  warningTitle: { color: '#69451F', fontWeight: '800', fontSize: 15 },
-  warningText: { color: '#765B3D', fontSize: 13, lineHeight: 19, marginTop: 4 },
-  modelNotice: { backgroundColor: '#E9EEF0', borderRadius: 18, padding: 15, marginTop: 14 },
-  modelTitle: { color: '#375363', fontSize: 14, fontWeight: '800' },
-  modelText: { color: '#4F6975', fontSize: 12, lineHeight: 18, marginTop: 5 },
-  modelLicense: { color: colors.forest, fontSize: 12, fontWeight: '700', marginTop: 10, textDecorationLine: 'underline' },
-  sectionTitle: { color: colors.text, fontSize: 20, fontWeight: '800', marginTop: 27, marginBottom: 13, letterSpacing: -0.3 },
-  steps: { backgroundColor: colors.paper, borderRadius: 22, paddingHorizontal: 18 },
-  step: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#F0F0E9' },
-  stepNumber: { color: colors.sage, fontSize: 13, fontWeight: '900', width: 36 },
-  stepTitle: { color: colors.text, fontSize: 15, fontWeight: '800' },
-  stepDetail: { color: colors.muted, fontSize: 12, marginTop: 2 },
-  startButton: { backgroundColor: colors.forest, borderRadius: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 21, paddingVertical: 19, marginTop: 22 },
-  startText: { color: 'white', fontSize: 17, fontWeight: '800' },
-  startArrow: { color: 'white', fontSize: 22 },
-  footer: { color: colors.muted, textAlign: 'center', fontSize: 11, marginTop: 18 },
+  safe: { flex: 1, backgroundColor: colors.ground },
+  scroll: { paddingBottom: 24 },
+  masthead: { minHeight: 56, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  brand: { fontFamily: fonts.display, fontSize: 16, letterSpacing: 0 },
+  openingWide: { flexDirection: 'row', alignItems: 'flex-end', gap: 24 },
+  openingStatement: { width: '72%' },
+  opening: { marginTop: 18 },
+  actions: { gap: 10, marginTop: 26 },
+  actionsWide: { flex: 1, marginTop: 0 },
+  step: { flexDirection: 'row', paddingVertical: 16, gap: 16 },
+  stepRuled: { borderTopWidth: rule, borderColor: colors.ground },
+  stepNumber: { width: 28, paddingTop: 6 },
+  stepBody: { flex: 1 },
+  stepDetail: { marginTop: 6 },
+  paragraph: { marginTop: 12 },
+  links: { marginTop: 14, gap: 10 },
+  footer: { flexDirection: 'row', flexWrap: 'wrap' },
+  footerCell: { paddingVertical: 14, paddingRight: 12, gap: 4, borderBottomWidth: rule, borderColor: colors.ink },
+  footerDivider: { borderLeftWidth: rule },
 });
