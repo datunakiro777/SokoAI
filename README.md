@@ -1,22 +1,29 @@
 # SokoAI
 
-An offline iOS and Android mushroom field guide with a three-photo camera flow. The app now bundles [iNaturalist's small pretrained on-device vision model](https://github.com/inaturalist/model-files/releases/tag/v25.01.15) (v25.01.15, MIT), plus a reproducible Lightning/PyTorch training and evaluation pipeline. The pretrained model covers 507 nature classes, including only 21 fungal classes. It is a **species preview**, not an eating-safety model. The `likelyEdible` verdict remains disabled.
+An offline iOS and Android mushroom field guide. The app bundles [BioCLIP 2](https://huggingface.co/imageomics/bioclip-2) (MIT), converted to TensorFlow Lite and restricted to the **51,406 fungal species** in its [TreeOfLife-200M](https://huggingface.co/datasets/imageomics/TreeOfLife-200M) species list (text embeddings CC0). The repository also keeps a reproducible Lightning/PyTorch training and evaluation pipeline. BioCLIP 2 is a **species suggestion** model, not an eating-safety model. The `likelyEdible` verdict remains disabled.
 
 ## What the app does
 
-The user photographs the cap, underside, and stem/base of one specimen. The current pretrained TFLite model runs entirely on the phone and produces species-class scores. It has no poison probability output. A separately trained and validated ONNX model could later add poisonous evidence. The results are:
+The user takes one photo of a mushroom and may add up to two more angles (underside, base). The model runs entirely on the phone and returns each photo's similarity to every fungal species. The app averages the photos' species probabilities and adds them up per genus. It has no poison probability output. The results are:
 
 | Result | Rule |
 | --- | --- |
-| Not detected | All three views strongly favor non-fungal classes; take new photos. This preliminary check can miss unfamiliar mushrooms. |
-| Unknown | The views disagree, image quality is poor, or the model cannot match a supported fungal class; do not eat. |
-| Not safe to eat | All three views strongly match one of the three catalog species independently documented as poisonous. This is a warning, not a validated diagnosis. |
-| Likely edible | Every view passes, a known edible species and edible score exceed the configured thresholds, no poisonous look-alike remains plausible, and the independent release gate passed. The app still says **“Do not eat based on this app alone.”** |
-| Uncertain | All other assessments; do not eat. |
+| Not detected | No photo is similar enough to any fungal species (best similarity below 0.70); take a new photo. |
+| Unknown | Image quality is poor, or no species or genus reaches a 60% match score. The closest three matches are still shown; do not eat. |
+| Not safe to eat | A documented poisonous species matches, or a genus that includes deadly or seriously toxic species (*Amanita*, *Galerina*, *Lepiota*, *Cortinarius*, *Clitocybe*, *Inocybe*, *Gyromitra*) gets at least 5% of the match. This is a warning, not a validated diagnosis. |
+| Uncertain | A species or genus reached a 60% match score and no warning applies. A possible match only; do not eat. |
+| Likely edible | Reserved for a separately validated model that passes the release gate below. Never produced by BioCLIP 2. |
 
-The camera and results screen display a warning. Nutrition is bundled offline **only** when a likely-edible result has an exact species entry whose USDA FoodData Central record was manually verified. A score is an estimate, never proof that eating is safe. A [clinical study of mushroom identification apps](https://pubmed.ncbi.nlm.nih.gov/36794335/) found that photo-based apps could not reliably exclude poisonous mushrooms.
+The camera and results screen display a warning. Match scores are **uncalibrated**: they are not the chance a match is correct and never a poison probability. A [clinical study of mushroom identification apps](https://pubmed.ncbi.nlm.nih.gov/36794335/) found that photo-based apps could not reliably exclude poisonous mushrooms. The app does not upload photos or coordinates.
 
-The pretrained model is not region-validated. Location is used only by the future regional ONNX path. The app does not upload photos or coordinates for inference.
+### Measured behavior
+
+Measured on held-out [Danish Fungi 2024](https://huggingface.co/datasets/maxvonk/danish-fungi-2024-pairs-800px) photos (expert-labelled, but only six common genera, and BioCLIP 2 may have seen some of these photos during training, so real-world accuracy is likely lower):
+
+* Top-1 species 37%, top-5 species 69%, top-1 genus 87% when ranking all 51,406 species.
+* With the app's thresholds on 300 photos: a species was named for 35 (31 correct) and a genus for 238 (231 correct); 49 of 50 photos of the toxic genera above got the warning.
+* Not detected: 50 of 50 everyday-object photos ([Imagenette](https://github.com/fastai/imagenette)), 48 of 50 plant photos and 49 of 50 animal photos.
+* The genus warning misses toxic species in mostly harmless genera (for example *Agaricus xanthodermus* or *Russula emetica*).
 
 ## Run the mobile app
 
@@ -30,9 +37,9 @@ The model uses native TensorFlow Lite through `react-native-fast-tflite`, so Exp
 
 ### Android test builds
 
-For a standalone test install, run `npx eas-cli@latest build --platform android --profile preview` from `mobile/`, then install the APK from its Expo build page. It opens without Expo Go or Metro. For live editing, build the `development` profile instead, install that APK, start Metro with `npx expo start --dev-client --lan`, and open the project in SokoAI. A local alternative is `npx expo run:android --device` after installing Android Studio and its SDK. This model has not passed specimen-level field evaluation; no result grants permission to eat a mushroom.
+For a standalone test install, run `npx eas-cli@latest build --platform android --profile preview` from `mobile/`, then install the APK from its Expo build page. It opens without Expo Go or Metro. For live editing, build the `development` profile instead, install that APK, start Metro with `npx expo start --dev-client --lan`, and open the project in SokoAI. A local alternative is `npx expo run:android --device` after installing Android Studio and its SDK. This model has not passed specimen-level field evaluation; no result grants permission to eat a mushroom. Each photo takes roughly 80 billion multiply-adds, so expect a few seconds per photo on a phone.
 
-The bundled TFLite model SHA-256 is `eae277b24efa629b998d5f9c091da0576162cb1aad498786087acd001dc86d2c`. Its class map was generated from the same release's `taxonomy.csv` (SHA-256 `bd18483667d8a0ce7c1676ad4160a61589390ef090b0fb8092da50832dcecb69`). The official Android implementation uses 299×299 RGB float32 pixels in NHWC order, with channel values 0–255 for this model generation. The model's final layer is softmax. These scores are **uncalibrated** and must not be treated as probabilities of safety.
+The bundled model is BioCLIP 2's ViT-L/14 image encoder plus a fixed matrix of fungal species text embeddings, with dynamic-range int8 weights (349 MB, SHA-256 in `mobile/src/lib/fungiModel.ts`). It takes 224×224 RGB float32 pixels in NHWC order with values 0–255 and outputs cosine similarities. GitHub limits files to 100 MB, so it ships as four `.tflitepart` assets. On first use, the patched `react-native-fast-tflite` loader (`mobile/patches/`) joins them into one file in app storage and memory-maps it, instead of copying it onto the Java heap. That first launch therefore needs about 700 MB of free storage while the parts are copied. Rebuild it with `pip install -r ml/requirements-bioclip.txt` and `python -m ml.export_bioclip2_fungi --mobile-dir mobile`.
 
 ## Data needed for a commercial model
 
@@ -45,7 +52,8 @@ Useful starting points:
 
 | Source | Use for this commercial app |
 | --- | --- |
-| [iNaturalist observations/photos](https://www.inaturalist.org/pages/terms) | **Exclude from commercial AI training** under its current Terms of Use, which prohibit using any iNaturalist data to train commercial AI, even when individual photos have permissive licenses. Obtain explicit permission before considering this source. Its separately [released model-files repository](https://github.com/inaturalist/model-files) carries an MIT license for the small pretrained model bundled here. |
+| [iNaturalist observations/photos](https://www.inaturalist.org/pages/terms) | **Exclude from commercial AI training** under its current Terms of Use, which prohibit using any iNaturalist data to train commercial AI, even when individual photos have permissive licenses. Obtain explicit permission before considering this source. Its separately [released model-files repository](https://github.com/inaturalist/model-files) carries an MIT license for the small pretrained model the app bundled before BioCLIP 2. |
+| [BioCLIP 2](https://huggingface.co/imageomics/bioclip-2) | Bundled model, MIT license. It was trained on TreeOfLife-200M, which draws on GBIF, EOL, BIOSCAN-5M and FathomNet images; confirm that this provenance meets your commercial requirements. |
 | [GBIF occurrence media](https://techdocs.gbif.org/en/data-publishing/multimedia-publishing) | Candidate discovery source; the media license can differ from the occurrence license. Verify each image separately. |
 | [Danish Fungi 2020/2024](https://github.com/BohemianVRA/DanishFungiDataset/blob/main/README.md) | Strong research benchmark, but its authors say the data and models are **noncommercial only**; exclude from commercial training unless separate permission is secured. |
 | [FungiTastic](https://github.com/BohemianVRA/FungiTastic) | Useful open-set and distribution-shift benchmark design. The repository’s code license does not establish rights to every underlying photo; exclude photos until their commercial terms are verified. |

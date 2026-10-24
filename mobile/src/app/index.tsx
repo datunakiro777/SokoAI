@@ -60,7 +60,7 @@ export default function HomeScreen() {
         <View style={styles.hero}>
           <Text style={styles.eyebrow}>EXPLORE WITH CARE</Text>
           <Text style={styles.heroTitle}>A closer look at what you found.</Text>
-          <Text style={styles.heroBody}>Photograph the cap, underside, and stem. The experimental model compares all three views for a possible species match.</Text>
+          <Text style={styles.heroBody}>Take one clear photo. The offline model compares it with 51,406 fungal species from around the world.</Text>
           <View style={styles.heroIllustration}>
             <Text style={styles.heroMushroom}>🍄</Text>
             <View style={styles.heroRing} />
@@ -80,19 +80,19 @@ export default function HomeScreen() {
             <Text style={styles.modelTitle}>Experimental species preview</Text>
             <Text style={styles.modelText}>{expoGo
               ? 'Expo Go cannot run this offline model. Install the SokoAI development build to test species identification.'
-              : 'An offline pretrained model compares 507 nature classes, including 21 fungal classes. It has not been validated to tell you a mushroom is safe to eat.'}</Text>
-            <Pressable onPress={() => Alert.alert('iNaturalist model license', MODEL_LICENSE)}>
+              : 'BioCLIP 2 runs on this phone and suggests likely species from 51,406 fungi worldwide. It has not been validated to tell you a mushroom is safe to eat.'}</Text>
+            <Pressable onPress={() => Alert.alert('BioCLIP 2 model license', MODEL_LICENSE)}>
               <Text style={styles.modelLicense}>Model credit and MIT license</Text>
             </Pressable>
           </View>
         )}
 
-        <Text style={styles.sectionTitle}>Three photos. One careful assessment.</Text>
+        <Text style={styles.sectionTitle}>One photo is enough. More angles help.</Text>
         <View style={styles.steps}>
           {[
-            ['01', 'Cap', 'The top and outer edge'],
-            ['02', 'Underside', 'Gills, pores, or ridges'],
-            ['03', 'Stem & base', 'The full stem and where it meets the ground'],
+            ['01', 'Mushroom', 'Cap and stem from the side'],
+            ['02', 'Underside', 'Optional: gills, pores, or ridges'],
+            ['03', 'Base', 'Optional: where the stem meets the ground'],
           ].map(([number, title, detail]) => (
             <View key={number} style={styles.step}>
               <Text style={styles.stepNumber}>{number}</Text>
@@ -114,7 +114,7 @@ export default function HomeScreen() {
           <Text style={styles.startText}>{modelReady ? 'Start identification' : expoGo ? 'Development build needed' : 'Try species preview'}</Text>
           <Text style={styles.startArrow}>↗</Text>
         </Pressable>
-        <Text style={styles.footer}>{modelReady ? 'Focused on Georgia and the Caucasus' : 'Species preview only'} · English beta</Text>
+        <Text style={styles.footer}>{modelReady ? 'Focused on Georgia and the Caucasus' : 'Worldwide fungi · species preview'} · English beta</Text>
       </ScrollView>
     </SafeAreaView>
   );

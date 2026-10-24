@@ -5,3 +5,4 @@ ml/data/
 ml/runs/
 ml/models/
 ml/reports/
+build/

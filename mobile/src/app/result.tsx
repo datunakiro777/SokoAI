@@ -10,7 +10,7 @@ function presentation(result: Decision | null) {
   switch (result.kind) {
     case 'notDetected': return { title: 'Not detected', subtitle: 'No mushroom found in these photos.', icon: '⌕', color: colors.muted, background: '#E9EEF0' };
     case 'unknown': return { title: 'Unknown', subtitle: 'Uncertain — do not eat.', icon: '?', color: colors.amber, background: colors.amberPale };
-    case 'notSafe': return { title: 'Not safe to eat', subtitle: 'Poisonous or strongly suspected poisonous.', icon: '!', color: colors.red, background: colors.redPale };
+    case 'notSafe': return { title: 'Not safe to eat', subtitle: 'Possible poisonous match. Do not eat.', icon: '!', color: colors.red, background: colors.redPale };
     case 'likelyEdible': return { title: 'Likely edible', subtitle: 'Do not eat based on this app alone.', icon: '✓', color: colors.forest, background: '#E5EFDF' };
     case 'uncertain': return { title: 'Uncertain', subtitle: 'Do not eat.', icon: '?', color: colors.amber, background: colors.amberPale };
   }
@@ -40,7 +40,7 @@ export default function ResultScreen() {
           {photos.map((photo, index) => (
             <View key={`${photo.uri}-${index}`} style={styles.photoWrap}>
               <Image source={{ uri: photo.uri }} style={styles.photo} />
-              <Text style={styles.photoLabel}>{['CAP', 'UNDERSIDE', 'BASE'][index]}</Text>
+              <Text style={styles.photoLabel}>{['MUSHROOM', 'UNDERSIDE', 'BASE'][index]}</Text>
             </View>
           ))}
         </View>
@@ -80,11 +80,48 @@ export default function ResultScreen() {
           </View>
         )}
 
-        {result?.preview && result.speciesConfidence !== undefined && (
+        {!result?.species && result?.genus && (
+          <View style={styles.card}>
+            <Text style={styles.label}>POSSIBLE GENUS · EXPERIMENTAL</Text>
+            <Text style={styles.speciesName}>{result.genus.name}</Text>
+            <Text style={styles.latin}>The species could not be told apart from these photos.</Text>
+          </View>
+        )}
+
+        {result?.warning && (
+          <View style={[styles.card, styles.dangerCard]}>
+            <Text style={[styles.label, styles.dangerLabel]}>WHY THIS WARNING</Text>
+            <Text style={styles.fieldValue}>{result.warning.genus} includes species containing {result.warning.toxin}.</Text>
+            <Text style={styles.source}>Source: {result.warning.source}</Text>
+          </View>
+        )}
+
+        {result?.preview && (result.speciesConfidence !== undefined || result.genus) && (
           <View style={styles.card}>
             <Text style={styles.label}>UNCALIBRATED MODEL MATCH</Text>
-            <View style={styles.scoreRow}><Text style={styles.scoreLabel}>Species class score</Text><Text style={styles.score}>{percentage(result.speciesConfidence)}</Text></View>
-            <Text style={styles.scoreNote}>This score is not the chance that the species is correct and is not a poison probability.</Text>
+            {result.speciesConfidence !== undefined && (
+              <View style={styles.scoreRow}><Text style={styles.scoreLabel}>Species match score</Text><Text style={styles.score}>{percentage(result.speciesConfidence)}</Text></View>
+            )}
+            {result.genus && (
+              <View style={styles.scoreRow}><Text style={styles.scoreLabel}>Genus {result.genus.name}</Text><Text style={styles.score}>{percentage(result.genus.confidence)}</Text></View>
+            )}
+            <Text style={styles.scoreNote}>These scores are not the chance that the match is correct and are not a poison probability.</Text>
+          </View>
+        )}
+
+        {!!result?.alternatives?.length && (
+          <View style={styles.card}>
+            <Text style={styles.label}>CLOSEST MATCHES</Text>
+            {result.alternatives.map((match) => (
+              <View key={match.scientificName} style={styles.scoreRow}>
+                <View style={styles.matchName}>
+                  <Text style={styles.matchLatin}>{match.scientificName}</Text>
+                  {match.commonName && <Text style={styles.matchCommon}>{match.commonName}</Text>}
+                </View>
+                <Text style={styles.score}>{percentage(match.confidence)}</Text>
+              </View>
+            ))}
+            <Text style={styles.scoreNote}>Compare these with a field guide or a local expert. Look-alikes can be deadly.</Text>
           </View>
         )}
 
@@ -161,6 +198,11 @@ const styles = StyleSheet.create({
   scoreRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 7 },
   scoreLabel: { color: colors.text, fontSize: 14 },
   score: { color: colors.forest, fontSize: 15, fontWeight: '900' },
+  matchName: { flex: 1, paddingRight: 12 },
+  matchLatin: { color: colors.text, fontSize: 14, fontStyle: 'italic' },
+  matchCommon: { color: colors.muted, fontSize: 12, marginTop: 2 },
+  dangerCard: { backgroundColor: colors.redPale },
+  dangerLabel: { color: colors.red },
   scoreNote: { color: colors.muted, fontSize: 11, lineHeight: 17, marginTop: 9 },
   nutritionRow: { flexDirection: 'row', justifyContent: 'space-between' },
   nutritionCell: { alignItems: 'center' },

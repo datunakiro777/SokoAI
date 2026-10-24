@@ -42,6 +42,18 @@ export const DEFAULT_DECISION_CONFIG: DecisionConfig = {
   releaseGatePassed: false,
 };
 
+export type Match = {
+  scientificName: string;
+  commonName?: string;
+  confidence: number;
+};
+
+export type GenusWarning = {
+  genus: string;
+  toxin: string;
+  source: string;
+};
+
 export type Decision = {
   kind: 'notDetected' | 'unknown' | 'notSafe' | 'likelyEdible' | 'uncertain';
   preview?: true;
@@ -52,6 +64,9 @@ export type Decision = {
   speciesConfidence?: number;
   toxicProbability?: number;
   edibleProbability?: number;
+  genus?: { name: string; confidence: number };
+  alternatives?: Match[];
+  warning?: GenusWarning;
   reason: string;
 };
 
