@@ -3,6 +3,7 @@ import Constants from 'expo-constants';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MODEL_LICENSE } from '../lib/modelLicense';
+import { FUNGI_MODEL_SHA256 } from '../lib/fungiModel';
 import { useScan } from '../state/ScanContext';
 import { colors } from '../ui/theme';
 
@@ -75,7 +76,7 @@ export default function HomeScreen() {
           <Text style={styles.startText}>{expoGo ? 'Development build needed' : 'Start identification'}</Text>
           <Text style={styles.startArrow}>↗</Text>
         </Pressable>
-        <Text style={styles.footer}>Worldwide fungi · species preview · English beta</Text>
+        <Text style={styles.footer}>Worldwide fungi · species preview · English beta · model {FUNGI_MODEL_SHA256.slice(0, 8)}</Text>
       </ScrollView>
     </SafeAreaView>
   );
