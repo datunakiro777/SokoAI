@@ -1,47 +1,19 @@
-import { useState } from 'react';
 import { router } from 'expo-router';
-import * as Location from 'expo-location';
 import Constants from 'expo-constants';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { modelAsset } from '../lib/modelBundle';
 import { MODEL_LICENSE } from '../lib/modelLicense';
 import { useScan } from '../state/ScanContext';
 import { colors } from '../ui/theme';
 
-const modelReady = modelAsset !== null;
 const expoGo = Constants.appOwnership === 'expo';
 
 export default function HomeScreen() {
-  const { reset, setInRegion } = useScan();
-  const [locationLabel, setLocationLabel] = useState('Check supported region');
-  const [locationBusy, setLocationBusy] = useState(false);
-
-  async function useApproximateLocation() {
-    setLocationBusy(true);
-    try {
-      const permission = await Location.requestForegroundPermissionsAsync();
-      if (!permission.granted) {
-        setInRegion(false);
-        setLocationLabel('Region not verified');
-        return;
-      }
-      const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-      const { latitude, longitude } = position.coords;
-      const supported = latitude >= 39 && latitude <= 45 && longitude >= 38 && longitude <= 51;
-      setInRegion(supported);
-      setLocationLabel(supported ? 'Caucasus region · on device' : 'Outside supported region');
-    } catch {
-      setInRegion(false);
-      setLocationLabel('Region not verified');
-    } finally {
-      setLocationBusy(false);
-    }
-  }
+  const { reset } = useScan();
 
   function start() {
-    if (!modelReady && expoGo) {
-      Alert.alert('Development build needed', 'Expo Go cannot run the offline pretrained model. Install a SokoAI development build to test identification.');
+    if (expoGo) {
+      Alert.alert('Development build needed', 'Expo Go cannot run the offline fungus model. Install a SokoAI development build to test identification.');
       return;
     }
     reset();
@@ -75,17 +47,15 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {!modelReady && (
-          <View style={styles.modelNotice}>
-            <Text style={styles.modelTitle}>Experimental species preview</Text>
-            <Text style={styles.modelText}>{expoGo
-              ? 'Expo Go cannot run this offline model. Install the SokoAI development build to test species identification.'
-              : 'BioCLIP 2 runs on this phone and suggests likely species from 51,406 fungi worldwide. It has not been validated to tell you a mushroom is safe to eat.'}</Text>
-            <Pressable onPress={() => Alert.alert('BioCLIP 2 model license', MODEL_LICENSE)}>
-              <Text style={styles.modelLicense}>Model credit and MIT license</Text>
-            </Pressable>
-          </View>
-        )}
+        <View style={styles.modelNotice}>
+          <Text style={styles.modelTitle}>Experimental species preview</Text>
+          <Text style={styles.modelText}>{expoGo
+            ? 'Expo Go cannot run this offline model. Install the SokoAI development build to test species identification.'
+            : 'BioCLIP 2 runs on this phone and suggests likely species from 51,406 fungi worldwide. It has not been validated to tell you a mushroom is safe to eat.'}</Text>
+          <Pressable onPress={() => Alert.alert('BioCLIP 2 model license', MODEL_LICENSE)}>
+            <Text style={styles.modelLicense}>Model credit and MIT license</Text>
+          </Pressable>
+        </View>
 
         <Text style={styles.sectionTitle}>One photo is enough. More angles help.</Text>
         <View style={styles.steps}>
@@ -101,20 +71,11 @@ export default function HomeScreen() {
           ))}
         </View>
 
-        {modelReady && <Pressable style={styles.locationButton} onPress={useApproximateLocation} disabled={locationBusy}>
-          <Text style={styles.locationIcon}>⌖</Text>
-          <View style={styles.locationCopy}>
-            <Text style={styles.locationTitle}>{locationBusy ? 'Getting location…' : locationLabel}</Text>
-            <Text style={styles.locationDetail}>Required for a regional assessment. Coordinates stay on this phone.</Text>
-          </View>
-          <Text style={styles.locationArrow}>›</Text>
-        </Pressable>}
-
         <Pressable style={styles.startButton} onPress={start}>
-          <Text style={styles.startText}>{modelReady ? 'Start identification' : expoGo ? 'Development build needed' : 'Try species preview'}</Text>
+          <Text style={styles.startText}>{expoGo ? 'Development build needed' : 'Start identification'}</Text>
           <Text style={styles.startArrow}>↗</Text>
         </Pressable>
-        <Text style={styles.footer}>{modelReady ? 'Focused on Georgia and the Caucasus' : 'Worldwide fungi · species preview'} · English beta</Text>
+        <Text style={styles.footer}>Worldwide fungi · species preview · English beta</Text>
       </ScrollView>
     </SafeAreaView>
   );
@@ -152,12 +113,6 @@ const styles = StyleSheet.create({
   stepNumber: { color: colors.sage, fontSize: 13, fontWeight: '900', width: 36 },
   stepTitle: { color: colors.text, fontSize: 15, fontWeight: '800' },
   stepDetail: { color: colors.muted, fontSize: 12, marginTop: 2 },
-  locationButton: { flexDirection: 'row', backgroundColor: colors.paper, borderRadius: 18, alignItems: 'center', padding: 16, marginTop: 14 },
-  locationIcon: { color: colors.forest, fontSize: 24, marginRight: 12 },
-  locationCopy: { flex: 1 },
-  locationTitle: { color: colors.text, fontWeight: '700', fontSize: 14 },
-  locationDetail: { color: colors.muted, fontSize: 11, marginTop: 3 },
-  locationArrow: { color: colors.sage, fontSize: 24 },
   startButton: { backgroundColor: colors.forest, borderRadius: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 21, paddingVertical: 19, marginTop: 22 },
   startText: { color: 'white', fontSize: 17, fontWeight: '800' },
   startArrow: { color: 'white', fontSize: 22 },

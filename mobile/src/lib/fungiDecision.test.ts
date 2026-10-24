@@ -20,7 +20,6 @@ test('a strong death cap match warns and names the species', () => {
   assert.equal(decision.kind, 'notSafe');
   assert.equal(decision.species?.scientificName, 'Amanita phalloides');
   assert.equal(decision.warning?.genus, 'Amanita');
-  assert.equal(decision.scoreCalibrated, false);
 });
 
 test('a strong match outside toxic genera stays uncertain, never edible', () => {

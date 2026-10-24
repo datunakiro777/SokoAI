@@ -1,8 +1,4 @@
 __pycache__/
 *.py[cod]
 .venv/
-ml/data/
-ml/runs/
-ml/models/
-ml/reports/
 build/

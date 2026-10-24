@@ -1,1 +1,1 @@
-"""Training, export, and safety evaluation for SokoAI."""
+"""Model export tools for SokoAI."""

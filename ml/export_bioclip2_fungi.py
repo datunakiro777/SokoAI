@@ -11,7 +11,7 @@ Sources (downloaded from Hugging Face):
   embeddings (CC0).
 
 Usage:
-  pip install -r ml/requirements-bioclip.txt
+  pip install -r ml/requirements.txt
   python -m ml.export_bioclip2_fungi --mobile-dir mobile
 """
 

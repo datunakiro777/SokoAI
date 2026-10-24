@@ -11,8 +11,7 @@
       "supportsTablet": true,
       "bundleIdentifier": "app.sokoai.mobile",
       "infoPlist": {
-        "NSCameraUsageDescription": "SokoAI uses the camera to photograph mushrooms for offline identification.",
-        "NSLocationWhenInUseUsageDescription": "Approximate location helps screen regional mushroom matches on this device."
+        "NSCameraUsageDescription": "SokoAI uses the camera to photograph mushrooms for offline identification."
       }
     },
     "android": {
@@ -25,9 +24,7 @@
       },
       "predictiveBackGestureEnabled": false,
       "permissions": [
-        "android.permission.CAMERA",
-        "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.ACCESS_FINE_LOCATION"
+        "android.permission.CAMERA"
       ]
     },
     "web": {
@@ -41,12 +38,6 @@
         {
           "cameraPermission": "Photograph mushrooms for offline identification",
           "recordAudioAndroid": false
-        }
-      ],
-      [
-        "expo-location",
-        {
-          "locationWhenInUsePermission": "Approximate location helps screen regional mushroom matches on this device."
         }
       ],
       "react-native-fast-tflite"

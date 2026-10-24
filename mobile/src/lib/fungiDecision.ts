@@ -47,11 +47,9 @@ const POISONOUS_SPECIES: Record<string, { commonName: string; source: string }> 
   },
 };
 
-const preview = {
-  preview: true as const,
-  previewModel: 'BioCLIP 2 · 51,406 fungal species',
-  previewDetails: 'This offline model compares your photos with fungal species worldwide. It suggests species, not eating safety, and its match score is not the chance that the match is correct.',
-  scoreCalibrated: false,
+const model = {
+  modelName: 'BioCLIP 2 · 51,406 fungal species',
+  modelDetails: 'This offline model compares your photos with fungal species worldwide. It suggests species, not eating safety, and its match score is not the chance that the match is correct.',
 };
 
 function maximum(values: ArrayLike<number>): number {
@@ -111,11 +109,11 @@ export function decideFungi(views: FungiView[]): Decision {
 
   const fungal = views.filter((view) => maximum(view.similarities) >= FUNGUS_SIMILARITY_GATE);
   if (!fungal.length) {
-    return { kind: 'notDetected', ...preview, reason: 'No fungus was recognised. Photograph a real mushroom so it fills most of the frame.' };
+    return { kind: 'notDetected', ...model, reason: 'No fungus was recognised. Photograph a real mushroom so it fills most of the frame.' };
   }
   const usable = fungal.filter((view) => view.qualityPass);
   if (!usable.length) {
-    return { kind: 'unknown', ...preview, reason: 'The photos are too dark, bright, or unclear. Retake them in better light.' };
+    return { kind: 'unknown', ...model, reason: 'The photos are too dark, bright, or unclear. Retake them in better light.' };
   }
 
   const probabilities = speciesProbabilities(usable);
@@ -148,7 +146,7 @@ export function decideFungi(views: FungiView[]): Decision {
     toxicitySource: documented?.source,
   };
   const result = {
-    ...preview,
+    ...model,
     ...(species && namedSpecies ? { species, speciesConfidence: namedSpecies.confidence } : {}),
     ...(namedGenus ? { genus: namedGenus } : {}),
     alternatives: candidates.slice(0, 3).map(({ scientificName: name, commonName: common, confidence }) =>
