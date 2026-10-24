@@ -2,3 +2,7 @@ __pycache__/
 *.py[cod]
 .venv/
 build/
+ml/data/
+ml/runs/
+ml/models/
+ml/reports/

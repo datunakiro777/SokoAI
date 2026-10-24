@@ -1,0 +1,36 @@
+# Files EAS Build uploads. When this file exists, EAS ignores .gitignore,
+# so it repeats those rules and adds what the app build never needs.
+
+# Git history: the model alone would be uploaded a second time.
+.git
+
+# Model export tooling and its large inputs/outputs; the app only needs mobile/.
+ml/
+build/
+.venv/
+__pycache__/
+*.py[cod]
+
+# Rules from mobile/.gitignore
+node_modules/
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+.metro-health-check*
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+.DS_Store
+*.pem
+.env*.local
+*.tsbuildinfo
+mobile/ios/
+mobile/android/
