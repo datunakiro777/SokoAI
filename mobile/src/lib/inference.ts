@@ -6,7 +6,9 @@ import { toByteArray } from 'base64-js';
 import jpeg from 'jpeg-js';
 import type { Decision } from './decision';
 import { decideFungi, type FungiView } from './fungiDecision';
-import { FUNGI_IMAGE_SIZE, FUNGI_MODEL_BYTES, FUNGI_MODEL_NAME, FUNGI_MODEL_PARTS, FUNGI_SPECIES_COUNT } from './fungiModel';
+import {
+  FUNGI_IMAGE_SIZE, FUNGI_MODEL_BYTES, FUNGI_MODEL_NAME, FUNGI_MODEL_PARTS, FUNGI_MODEL_SHA256, FUNGI_SPECIES_COUNT,
+} from './fungiModel';
 import type { TfliteModel } from 'react-native-fast-tflite';
 
 export type Photo = { uri: string; width: number; height: number };
@@ -15,12 +17,24 @@ export const MAX_PHOTOS = 3;
 
 let modelPromise: Promise<TfliteModel> | null = null;
 
+// Named after the model hash so a model from an older app version is never reused.
+const MODEL_FILE_NAME = `${FUNGI_MODEL_NAME}-${FUNGI_MODEL_SHA256.slice(0, 12)}.tflite`;
+
+function deleteOldModels() {
+  for (const entry of Paths.document.list()) {
+    if (entry instanceof File && entry.name.startsWith(FUNGI_MODEL_NAME) && entry.name !== MODEL_FILE_NAME) {
+      try { entry.delete(); } catch { /* Retried on the next launch. */ }
+    }
+  }
+}
+
 async function loadModel(): Promise<TfliteModel> {
   // This import must remain lazy: Expo Go does not contain the native TFLite module.
   const { loadTensorflowModel } = await import('react-native-fast-tflite');
   // The model ships in parts (GitHub limits file size). On first use the native
   // loader joins them into one file in app storage, then memory-maps that file.
-  const model = new File(Paths.document, `${FUNGI_MODEL_NAME}.tflite`);
+  deleteOldModels();
+  const model = new File(Paths.document, MODEL_FILE_NAME);
   let parts: File[] = [];
   let url = model.uri;
   if (!model.exists || model.size !== FUNGI_MODEL_BYTES) {

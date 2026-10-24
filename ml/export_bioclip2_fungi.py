@@ -91,6 +91,49 @@ def convert(weights_path: Path, species_embeddings: np.ndarray, output: Path) ->
     quantized.load_quantization_recipe(recipe.dynamic_wi8_afp32())
     quantized.quantize().export_model(str(output), overwrite=True)
     float_path.unlink()
+    inline_buffers(output)
+
+
+def inline_buffers(path: Path) -> None:
+    """Store every weight inside the flatbuffer instead of after it.
+
+    The quantizer writes large weights after the flatbuffer and refers to them
+    by offset. TFLite's C API, which react-native-fast-tflite uses, builds its
+    interpreter without the model allocation, so it cannot resolve those
+    offsets and invoke fails with "Input tensor N lacks data".
+    """
+    from ai_edge_litert import schema_py_generated as schema
+    from ai_edge_litert.tools import flatbuffer_utils
+
+    raw = path.read_bytes()
+    model = flatbuffer_utils.convert_bytearray_to_object(raw)
+    for buffer in model.buffers:
+        if buffer.offset > 1:
+            buffer.data = np.frombuffer(raw, np.uint8, buffer.size, buffer.offset)
+            buffer.offset = 0
+            buffer.size = 0
+
+    pack = schema.BufferT.Pack
+
+    def pack_aligned(self, builder):
+        # Keep weights 16-byte aligned, as the converter does.
+        if self.data is None:
+            return pack(self, builder)
+        data = np.asarray(self.data, np.uint8).tobytes()
+        builder.StartVector(1, len(data), 16)
+        builder.head -= len(data)
+        builder.Bytes[builder.head:builder.head + len(data)] = data
+        builder.vectorNumElems = len(data)
+        vector = builder.EndVector()
+        schema.BufferStart(builder)
+        schema.BufferAddData(builder, vector)
+        return schema.BufferEnd(builder)
+
+    schema.BufferT.Pack = pack_aligned
+    try:
+        path.write_bytes(flatbuffer_utils.convert_object_to_bytearray(model))
+    finally:
+        schema.BufferT.Pack = pack
 
 
 def write_catalog(species: list, path: Path) -> None:
