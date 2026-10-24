@@ -1,3 +1,46 @@
+diff --git a/node_modules/react-native-fast-tflite/android/src/main/java/com/margelo/nitro/tflite/HybridAssetLoader.kt b/node_modules/react-native-fast-tflite/android/src/main/java/com/margelo/nitro/tflite/HybridAssetLoader.kt
+index c2360f5..13d24f9 100644
+--- a/node_modules/react-native-fast-tflite/android/src/main/java/com/margelo/nitro/tflite/HybridAssetLoader.kt
++++ b/node_modules/react-native-fast-tflite/android/src/main/java/com/margelo/nitro/tflite/HybridAssetLoader.kt
+@@ -4,15 +4,38 @@ import androidx.annotation.Keep
+ import com.facebook.proguard.annotations.DoNotStrip
+ import com.margelo.nitro.core.ArrayBuffer
+ import com.margelo.nitro.core.Promise
++import java.io.File
++import java.io.RandomAccessFile
++import java.net.URI
+ import java.net.URL
++import java.nio.channels.FileChannel
+ 
+ @Keep
+ @DoNotStrip
+ class HybridAssetLoader : HybridAssetLoaderSpec() {
+   override fun loadAsset(path: String): Promise<ArrayBuffer> {
+     return Promise.async {
++      if (path.startsWith("file://")) {
++        // "file://model|file://part0|file://part1|..." first joins the parts into the model file.
++        val files = path.split('|').map { File(URI(it)) }
++        val model = files[0]
++        if (files.size > 1) joinParts(model, files.drop(1))
++        // Memory-map large models instead of copying them onto the Java heap.
++        return@async RandomAccessFile(model, "rw").use { file ->
++          ArrayBuffer.wrap(file.channel.map(FileChannel.MapMode.PRIVATE, 0, file.length()))
++        }
++      }
+       val bytes = URL(path).readBytes()
+       return@async ArrayBuffer.copy(bytes)
+     }
+   }
++
++  private fun joinParts(model: File, parts: List<File>) {
++    if (model.length() == parts.sumOf { it.length() }) return
++    val temp = File(model.parentFile, "${model.name}.tmp")
++    temp.outputStream().use { output ->
++      for (part in parts) part.inputStream().use { it.copyTo(output, 1 shl 20) }
++    }
++    if (!temp.renameTo(model)) throw Error("Could not write ${model.path}")
++  }
+ }
 diff --git a/node_modules/react-native-fast-tflite/cpp/HybridTfliteModel.cpp b/node_modules/react-native-fast-tflite/cpp/HybridTfliteModel.cpp
 index 1a7a3c4..e473ae0 100644
 --- a/node_modules/react-native-fast-tflite/cpp/HybridTfliteModel.cpp
@@ -40,18 +83,31 @@ index 1a7a3c4..e473ae0 100644
  }
  
 diff --git a/node_modules/react-native-fast-tflite/cpp/HybridTfliteModule.cpp b/node_modules/react-native-fast-tflite/cpp/HybridTfliteModule.cpp
-index 38c82d1..859eb1b 100644
+index 38c82d1..e305f64 100644
 --- a/node_modules/react-native-fast-tflite/cpp/HybridTfliteModule.cpp
 +++ b/node_modules/react-native-fast-tflite/cpp/HybridTfliteModule.cpp
-@@ -40,6 +40,7 @@ HybridTfliteModule::createModel(const std::shared_ptr<ArrayBuffer>& modelData,
+@@ -1,6 +1,9 @@
+ #include "HybridTfliteModule.hpp"
+ #include "TfliteHelpers.hpp"
+ 
++#include <algorithm>
++#include <thread>
++
+ #if defined(ANDROID)
+ #include <tflite/c/c_api.h>
+ #elif defined(__APPLE__)
+@@ -40,6 +43,10 @@ HybridTfliteModule::createModel(const std::shared_ptr<ArrayBuffer>& modelData,
  
    // Configure interpreter via options
    TfLiteInterpreterOptions* options = TfLiteInterpreterOptionsCreate();
 +  TfLiteInterpreterOptionsSetErrorReporter(options, tfliteErrorReporter, nullptr);
++  // Use up to four CPU threads; the default is a single thread.
++  unsigned int cores = std::thread::hardware_concurrency();
++  TfLiteInterpreterOptionsSetNumThreads(options, static_cast<int32_t>(cores == 0 ? 1 : std::min(cores, 4u)));
  
    // Add all hardware accelerated delegates (e.g. GPU, NPU, ...)
    // if any. The default CPU delegate will always be available.
-@@ -57,7 +58,7 @@ HybridTfliteModule::createModel(const std::shared_ptr<ArrayBuffer>& modelData,
+@@ -57,7 +64,7 @@ HybridTfliteModule::createModel(const std::shared_ptr<ArrayBuffer>& modelData,
    TfLiteModelDelete(model);
  
    if (interpreter == nullptr) {
@@ -129,3 +185,54 @@ index c6458e5..f977c00 100644
  TfLiteDelegate* getCoreMLDelegate();
  TfLiteDelegate* getMetalDelegate();
  TfLiteDelegate* getNNAPIDelegate();
+diff --git a/node_modules/react-native-fast-tflite/ios/HybridAssetLoader.swift b/node_modules/react-native-fast-tflite/ios/HybridAssetLoader.swift
+index d55c7fe..98ec8b0 100644
+--- a/node_modules/react-native-fast-tflite/ios/HybridAssetLoader.swift
++++ b/node_modules/react-native-fast-tflite/ios/HybridAssetLoader.swift
+@@ -4,12 +4,42 @@ import NitroModules
+ class HybridAssetLoader: HybridAssetLoaderSpec {
+   func loadAsset(path: String) throws -> Promise<ArrayBuffer> {
+     return Promise.async {
+-      guard let url = URL(string: path) else {
+-        throw NSError(domain: "AssetLoader", code: 1,
+-                      userInfo: [NSLocalizedDescriptionKey: "Invalid URL: \(path)"])
++      // "file://model|file://part0|file://part1|..." first joins the parts into the model file.
++      let urls = try path.split(separator: "|").map { (part: Substring) -> URL in
++        guard let url = URL(string: String(part)) else {
++          throw NSError(domain: "AssetLoader", code: 1,
++                        userInfo: [NSLocalizedDescriptionKey: "Invalid URL: \(part)"])
++        }
++        return url
+       }
+-      let data = try Data(contentsOf: url)
++      if urls.count > 1 {
++        try HybridAssetLoader.joinParts(model: urls[0], parts: Array(urls.dropFirst()))
++      }
++      let data = try Data(contentsOf: urls[0], options: urls[0].isFileURL ? .alwaysMapped : [])
+       return try ArrayBuffer.copy(data: data)
+     }
+   }
++
++  private static func fileSize(_ url: URL) -> Int64 {
++    let attributes = try? FileManager.default.attributesOfItem(atPath: url.path)
++    return (attributes?[.size] as? NSNumber)?.int64Value ?? -1
++  }
++
++  private static func joinParts(model: URL, parts: [URL]) throws {
++    if fileSize(model) == parts.reduce(Int64(0)) { $0 + fileSize($1) } { return }
++    let manager = FileManager.default
++    let temp = model.appendingPathExtension("tmp")
++    manager.createFile(atPath: temp.path, contents: nil)
++    let output = try FileHandle(forWritingTo: temp)
++    for part in parts {
++      let input = try FileHandle(forReadingFrom: part)
++      while let chunk = try input.read(upToCount: 1 << 20), !chunk.isEmpty {
++        try output.write(contentsOf: chunk)
++      }
++      try input.close()
++    }
++    try output.close()
++    if manager.fileExists(atPath: model.path) { try manager.removeItem(at: model) }
++    try manager.moveItem(at: temp, to: model)
++  }
+ }

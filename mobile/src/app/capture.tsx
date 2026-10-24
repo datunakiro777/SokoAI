@@ -1,16 +1,16 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { router } from 'expo-router';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { ActivityIndicator, Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { analyzePhotos } from '../lib/inference';
+import { MAX_PHOTOS, analyzePhotos, prepareModel, type Photo } from '../lib/inference';
 import { useScan } from '../state/ScanContext';
 import { colors } from '../ui/theme';
 
 const guides = [
-  { title: 'Photograph the cap', subtitle: 'Center the top and show its outer edge.' },
-  { title: 'Show the underside', subtitle: 'Capture gills, pores, or ridges in clear light.' },
-  { title: 'Show stem and base', subtitle: 'Include the whole stem and where it meets the ground.' },
+  { title: 'Photograph the mushroom', subtitle: 'Show the cap and stem from the side, filling the frame.' },
+  { title: 'Optional: the underside', subtitle: 'Gills, pores, or ridges help separate look-alikes.' },
+  { title: 'Optional: the base', subtitle: 'Include where the stem meets the ground.' },
 ];
 
 export default function CaptureScreen() {
@@ -19,30 +19,47 @@ export default function CaptureScreen() {
   const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
   const [torch, setTorch] = useState(false);
-  const { photos, setPhotos, setResult, setAnalysisError, inRegion } = useScan();
-  const step = Math.min(photos.length, 2);
+  const [modelReady, setModelReady] = useState(false);
+  const { photos, setPhotos, setResult, setAnalysisError } = useScan();
+  const step = Math.min(photos.length, MAX_PHOTOS - 1);
 
-  async function capture() {
-    if (!ready || busy || !camera.current) return;
+  // Start loading the model while the user frames the first photo.
+  useEffect(() => {
+    prepareModel().then(() => setModelReady(true), () => { /* Reported when the user taps Identify. */ });
+  }, []);
+
+  async function identify(list: Photo[]) {
     setBusy(true);
     try {
-      const photo = await camera.current.takePictureAsync({ quality: 0.92, skipProcessing: false });
-      if (!photo) throw new Error('The camera did not return a photo.');
-      const next = [...photos, { uri: photo.uri, width: photo.width, height: photo.height }];
-      setPhotos(next);
-      if (next.length === 3) {
-        const decision = await analyzePhotos(next, inRegion);
-        setResult(decision);
-        setAnalysisError(null);
-        router.replace('/result');
-      }
+      const decision = await analyzePhotos(list);
+      setModelReady(true);
+      setResult(decision);
+      setAnalysisError(null);
+      router.replace('/result');
     } catch (error) {
-      // Drop the last photo so the next shutter press retakes it instead of adding a fourth.
-      if (photos.length === 2) setPhotos(photos);
+      // Drop the last photo of a full set so the next shutter press retakes it.
+      if (list.length === MAX_PHOTOS) setPhotos(list.slice(0, -1));
       Alert.alert('Could not analyze photos', error instanceof Error ? error.message : 'Please try again.');
     } finally {
       setBusy(false);
     }
+  }
+
+  async function capture() {
+    if (!ready || busy || !camera.current || photos.length >= MAX_PHOTOS) return;
+    setBusy(true);
+    let next: Photo[] | null = null;
+    try {
+      const photo = await camera.current.takePictureAsync({ quality: 0.92, skipProcessing: false });
+      if (!photo) throw new Error('The camera did not return a photo.');
+      next = [...photos, { uri: photo.uri, width: photo.width, height: photo.height }];
+      setPhotos(next);
+    } catch (error) {
+      Alert.alert('Could not take photo', error instanceof Error ? error.message : 'Please try again.');
+    } finally {
+      setBusy(false);
+    }
+    if (next?.length === MAX_PHOTOS) await identify(next);
   }
 
   if (!permission) return <SafeAreaView style={styles.center}><ActivityIndicator color={colors.forest} /></SafeAreaView>;
@@ -51,7 +68,7 @@ export default function CaptureScreen() {
       <SafeAreaView style={styles.permission}>
         <Text style={styles.permissionEmoji}>📷</Text>
         <Text style={styles.permissionTitle}>Camera access needed</Text>
-        <Text style={styles.permissionText}>Take three guided photos to identify a mushroom offline. Photos stay on your phone.</Text>
+        <Text style={styles.permissionText}>Take a photo to identify a mushroom offline. Photos stay on your phone.</Text>
         <Pressable style={styles.permissionButton} onPress={requestPermission}><Text style={styles.permissionButtonText}>Allow camera</Text></Pressable>
         <Pressable onPress={() => router.back()}><Text style={styles.backText}>Go back</Text></Pressable>
       </SafeAreaView>
@@ -64,7 +81,7 @@ export default function CaptureScreen() {
       <SafeAreaView style={styles.overlay} edges={['top', 'bottom']}>
         <View style={styles.topRow}>
           <Pressable style={styles.roundButton} onPress={() => router.back()}><Text style={styles.topIcon}>‹</Text></Pressable>
-          <Text style={styles.stepText}>PHOTO {Math.min(photos.length + 1, 3)} OF 3</Text>
+          <Text style={styles.stepText}>{photos.length ? `PHOTO ${step + 1} · OPTIONAL` : 'PHOTO 1'}</Text>
           <Pressable style={styles.roundButton} onPress={() => setTorch(!torch)}><Text style={styles.topIcon}>{torch ? '☀' : 'ϟ'}</Text></Pressable>
         </View>
         <View style={styles.guideBox}>
@@ -75,7 +92,7 @@ export default function CaptureScreen() {
         <View style={styles.bottomPanel}>
           <View style={styles.progressRow}>
             {guides.map((guide, index) => (
-              <View key={guide.title} style={[styles.progressItem, index <= photos.length && styles.progressActive]} />
+              <View key={guide.title} style={[styles.progressItem, index < photos.length && styles.progressActive]} />
             ))}
           </View>
           <Text style={styles.captureTitle}>{guides[step].title}</Text>
@@ -89,6 +106,11 @@ export default function CaptureScreen() {
               <Text style={styles.retakeText}>Retake</Text>
             </Pressable>
           </View>
+          {photos.length > 0 && (
+            <Pressable style={[styles.identifyButton, busy && styles.identifyBusy]} onPress={() => identify(photos)} disabled={busy}>
+              <Text style={styles.identifyText}>{busy ? (modelReady ? 'Identifying…' : 'Loading offline model…') : `Identify with ${photos.length} photo${photos.length > 1 ? 's' : ''}`}</Text>
+            </Pressable>
+          )}
           <Text style={styles.captureNote}>A photo result cannot prove a mushroom is safe to eat.</Text>
         </View>
       </SafeAreaView>
@@ -125,6 +147,9 @@ const styles = StyleSheet.create({
   shutterInner: { width: 56, height: 56, borderRadius: 28, backgroundColor: colors.forest },
   retake: { width: 50 },
   retakeText: { color: colors.forest, fontWeight: '700', fontSize: 12, textAlign: 'center' },
+  identifyButton: { backgroundColor: colors.forest, borderRadius: 16, alignItems: 'center', paddingVertical: 15, marginBottom: 12 },
+  identifyBusy: { opacity: 0.6 },
+  identifyText: { color: 'white', fontSize: 15, fontWeight: '800' },
   captureNote: { color: colors.muted, fontSize: 11, textAlign: 'center' },
   permission: { flex: 1, backgroundColor: colors.cream, alignItems: 'center', justifyContent: 'center', padding: 30 },
   permissionEmoji: { fontSize: 62 },

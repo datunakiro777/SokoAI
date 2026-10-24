@@ -9,8 +9,6 @@ type ScanState = {
   setResult: (result: Decision | null) => void;
   analysisError: string | null;
   setAnalysisError: (message: string | null) => void;
-  inRegion: boolean;
-  setInRegion: (inRegion: boolean) => void;
   reset: () => void;
 };
 
@@ -20,11 +18,10 @@ export function ScanProvider({ children }: { children: ReactNode }) {
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [result, setResult] = useState<Decision | null>(null);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
-  const [inRegion, setInRegion] = useState(false);
   const value = useMemo(() => ({
-    photos, setPhotos, result, setResult, analysisError, setAnalysisError, inRegion, setInRegion,
+    photos, setPhotos, result, setResult, analysisError, setAnalysisError,
     reset: () => { setPhotos([]); setResult(null); setAnalysisError(null); },
-  }), [photos, result, analysisError, inRegion]);
+  }), [photos, result, analysisError]);
   return <ScanContext.Provider value={value}>{children}</ScanContext.Provider>;
 }
 
