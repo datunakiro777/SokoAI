@@ -91,16 +91,22 @@ def convert(weights_path: Path, species_embeddings: np.ndarray, output: Path) ->
     quantized.load_quantization_recipe(recipe.dynamic_wi8_afp32())
     quantized.quantize().export_model(str(output), overwrite=True)
     float_path.unlink()
-    inline_buffers(output)
+    prepare_for_mobile(output)
 
 
-def inline_buffers(path: Path) -> None:
-    """Store every weight inside the flatbuffer instead of after it.
+def prepare_for_mobile(path: Path) -> None:
+    """Rewrite the quantized model so the phone's TFLite runs it correctly.
 
-    The quantizer writes large weights after the flatbuffer and refers to them
-    by offset. TFLite's C API, which react-native-fast-tflite uses, builds its
-    interpreter without the model allocation, so it cannot resolve those
-    offsets and invoke fails with "Input tensor N lacks data".
+    1. Store every weight inside the flatbuffer instead of after it. The
+       quantizer writes large weights after the flatbuffer and refers to them
+       by offset. TFLite's C API, which react-native-fast-tflite uses, builds
+       its interpreter without the model allocation, so it cannot resolve
+       those offsets and invoke fails with "Input tensor N lacks data".
+    2. Quantize fully-connected inputs asymmetrically. Without XNNPACK,
+       TFLite 1.4's ARM kernels return results off by orders of magnitude for
+       these per-channel hybrid layers with symmetric input quantization
+       (reproduced on emulated Cortex-A53, A76 and Neoverse N2). XNNPACK
+       results are unchanged by this flag.
     """
     from ai_edge_litert import schema_py_generated as schema
     from ai_edge_litert.tools import flatbuffer_utils
@@ -112,6 +118,10 @@ def inline_buffers(path: Path) -> None:
             buffer.data = np.frombuffer(raw, np.uint8, buffer.size, buffer.offset)
             buffer.offset = 0
             buffer.size = 0
+    for operator in model.subgraphs[0].operators:
+        code = model.operatorCodes[operator.opcodeIndex]
+        if max(code.builtinCode, code.deprecatedBuiltinCode) == schema.BuiltinOperator.FULLY_CONNECTED:
+            operator.builtinOptions.asymmetricQuantizeInputs = True
 
     pack = schema.BufferT.Pack
 

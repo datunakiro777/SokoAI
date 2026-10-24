@@ -38,6 +38,11 @@ async function loadModel(): Promise<TfliteModel> {
   let parts: File[] = [];
   let url = model.uri;
   if (!model.exists || model.size !== FUNGI_MODEL_BYTES) {
+    // The parts are copied out of the app and then joined: about twice the model size.
+    const needed = 2 * FUNGI_MODEL_BYTES;
+    if (Paths.availableDiskSpace < needed) {
+      throw new Error(`SokoAI needs about ${Math.ceil(needed / 1e6)} MB of free storage to prepare its offline model the first time. Free up space and try again.`);
+    }
     const assets = await Asset.loadAsync(FUNGI_MODEL_PARTS);
     if (assets.some((asset) => !asset.localUri)) throw new Error('The offline model files could not be prepared.');
     parts = assets.map((asset) => new File(asset.localUri!));

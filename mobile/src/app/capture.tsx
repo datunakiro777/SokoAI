@@ -19,18 +19,20 @@ export default function CaptureScreen() {
   const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
   const [torch, setTorch] = useState(false);
+  const [modelReady, setModelReady] = useState(false);
   const { photos, setPhotos, setResult, setAnalysisError } = useScan();
   const step = Math.min(photos.length, MAX_PHOTOS - 1);
 
   // Start loading the model while the user frames the first photo.
   useEffect(() => {
-    prepareModel().catch(() => { /* Reported when the user taps Identify. */ });
+    prepareModel().then(() => setModelReady(true), () => { /* Reported when the user taps Identify. */ });
   }, []);
 
   async function identify(list: Photo[]) {
     setBusy(true);
     try {
       const decision = await analyzePhotos(list);
+      setModelReady(true);
       setResult(decision);
       setAnalysisError(null);
       router.replace('/result');
@@ -106,7 +108,7 @@ export default function CaptureScreen() {
           </View>
           {photos.length > 0 && (
             <Pressable style={[styles.identifyButton, busy && styles.identifyBusy]} onPress={() => identify(photos)} disabled={busy}>
-              <Text style={styles.identifyText}>{busy ? 'Identifying…' : `Identify with ${photos.length} photo${photos.length > 1 ? 's' : ''}`}</Text>
+              <Text style={styles.identifyText}>{busy ? (modelReady ? 'Identifying…' : 'Loading offline model…') : `Identify with ${photos.length} photo${photos.length > 1 ? 's' : ''}`}</Text>
             </Pressable>
           )}
           <Text style={styles.captureNote}>A photo result cannot prove a mushroom is safe to eat.</Text>
