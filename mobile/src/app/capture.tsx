@@ -37,6 +37,8 @@ export default function CaptureScreen() {
         router.replace('/result');
       }
     } catch (error) {
+      // Drop the last photo so the next shutter press retakes it instead of adding a fourth.
+      if (photos.length === 2) setPhotos(photos);
       Alert.alert('Could not analyze photos', error instanceof Error ? error.message : 'Please try again.');
     } finally {
       setBusy(false);
@@ -62,7 +64,7 @@ export default function CaptureScreen() {
       <SafeAreaView style={styles.overlay} edges={['top', 'bottom']}>
         <View style={styles.topRow}>
           <Pressable style={styles.roundButton} onPress={() => router.back()}><Text style={styles.topIcon}>‹</Text></Pressable>
-          <Text style={styles.stepText}>PHOTO {photos.length + 1} OF 3</Text>
+          <Text style={styles.stepText}>PHOTO {Math.min(photos.length + 1, 3)} OF 3</Text>
           <Pressable style={styles.roundButton} onPress={() => setTorch(!torch)}><Text style={styles.topIcon}>{torch ? '☀' : 'ϟ'}</Text></Pressable>
         </View>
         <View style={styles.guideBox}>
