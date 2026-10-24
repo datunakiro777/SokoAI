@@ -41,9 +41,13 @@ def download() -> tuple[Path, Path, Path]:
     return Path(weights), Path(names), Path(embeddings)
 
 
+def fungal_indices(names: list) -> list[int]:
+    return [i for i, (taxonomy, _) in enumerate(names) if taxonomy[0] == "Fungi"]
+
+
 def fungal_species(names_path: Path, embeddings_path: Path) -> tuple[list, np.ndarray]:
     names = json.loads(names_path.read_text(encoding="utf-8"))
-    indices = [i for i, (taxonomy, _) in enumerate(names) if taxonomy[0] == "Fungi"]
+    indices = fungal_indices(names)
     embeddings = np.load(embeddings_path, mmap_mode="r")  # (dim, species), unit columns
     return [names[i] for i in indices], np.ascontiguousarray(embeddings[:, indices], dtype=np.float32)
 
@@ -147,19 +151,27 @@ def prepare_for_mobile(path: Path) -> None:
 
 
 def write_catalog(species: list, path: Path) -> None:
-    genera: dict[str, int] = {}
-    families: dict[str, int] = {}
+    """Rows: [genus, epithet, family, common name, order, class, phylum] (ranks as list indices)."""
+    ranks: dict[str, dict[str, int]] = {rank: {} for rank in ("genera", "families", "orders", "classes", "phyla")}
+
+    def index(rank: str, name: str) -> int:
+        return ranks[rank].setdefault(name, len(ranks[rank]))
+
     rows = []
     for taxonomy, common in species:
-        family, genus, epithet = taxonomy[4], taxonomy[5], taxonomy[6]
+        _, phylum, class_, order, family, genus, epithet = taxonomy
         # Common names come from mixed languages; keep plain ASCII (mostly English) ones.
         rows.append([
-            genera.setdefault(genus, len(genera)),
+            index("genera", genus),
             epithet,
-            families.setdefault(family, len(families)),
+            index("families", family),
             common if common.isascii() else "",
+            index("orders", order),
+            index("classes", class_),
+            index("phyla", phylum),
         ])
-    catalog = {"genera": list(genera), "families": list(families), "species": rows}
+    catalog = {rank: list(names) for rank, names in ranks.items()}
+    catalog["species"] = rows
     path.write_text(json.dumps(catalog, separators=(",", ":"), ensure_ascii=False), encoding="utf-8")
 
 
@@ -182,9 +194,14 @@ def main() -> None:
     parser.add_argument("--weights", help="local open_clip_model.safetensors (skips download)")
     parser.add_argument("--names", help="local txt_emb_species.json")
     parser.add_argument("--embeddings", help="local txt_emb_species.npy")
+    parser.add_argument("--catalog-only", action="store_true", help="only rewrite the species catalog (needs --names)")
     args = parser.parse_args()
 
     mobile = Path(args.mobile_dir)
+    if args.catalog_only:
+        names = json.loads(Path(args.names).read_text(encoding="utf-8"))
+        write_catalog([names[i] for i in fungal_indices(names)], mobile / "src/lib/fungiCatalog.json")
+        return
     work = Path(args.work_dir)
     work.mkdir(parents=True, exist_ok=True)
     if args.weights and args.names and args.embeddings:
