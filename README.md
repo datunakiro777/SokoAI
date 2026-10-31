@@ -17,11 +17,13 @@ The camera and results screen display a warning. Match scores are **uncalibrated
 
 ### Measured behavior
 
-Measured on held-out [Danish Fungi 2024](https://huggingface.co/datasets/maxvonk/danish-fungi-2024-pairs-800px) photos (expert-labelled, but only six common genera, and BioCLIP 2 may have seen some of these photos during training, so real-world accuracy is likely lower):
+Measured with `python -m ml.evaluate_bioclip2_fungi` on 2,379 held-out [Danish Fungi 2024](https://huggingface.co/datasets/maxvonk/danish-fungi-2024-pairs-800px) photos, one photo per scan, using the app's 8-bit model (expert-labelled, but only six common genera: *Russula*, *Mycena*, *Amanita*, *Agaricus*, *Clitocybe* and *Boletus*; BioCLIP 2 may have seen some of these photos during training, so real-world accuracy is likely lower). Full output: `ml/results/bioclip2_eval.json`.
 
-* Top-1 species 37%, top-5 species 69%, top-1 genus 87% when ranking all 51,406 species.
-* With the app's thresholds on 300 photos: a species was named for 35 (31 correct) and a genus for 238 (231 correct); 49 of 50 photos of the toxic genera above got the warning.
-* Not detected: 50 of 50 everyday-object photos ([Imagenette](https://github.com/fastai/imagenette)), 48 of 50 plant photos and 49 of 50 animal photos.
+* Top-1 species 40%, top-5 species 66%, top-1 genus 90% when ranking all 51,406 species.
+* With the app's thresholds: a species was named for 383 photos (332 correct) and a genus for 1,884 (1,826 correct).
+* Warnings: 460 of 477 *Amanita* and *Clitocybe* photos, but only 163 of 243 photos labelled poisonous (15 of 92 outside the warned genera). 418 of 2,136 harmless photos were also warned.
+* Not detected: 200 of 200 everyday-object photos ([Imagenette](https://github.com/fastai/imagenette)), 195 of 200 flower photos ([Oxford Flowers](https://huggingface.co/datasets/nelorth/oxford-flowers)) and 200 of 200 pet photos ([Oxford-IIIT Pet](https://huggingface.co/datasets/timm/oxford-iiit-pet)), with the full-precision model. 11 of 2,379 fungus photos were not detected.
+* The 8-bit model gave the same result as the full-precision model for 97.8% of photos.
 * The genus warning misses toxic species in mostly harmless genera (for example *Agaricus xanthodermus* or *Russula emetica*).
 
 ## Run the mobile app

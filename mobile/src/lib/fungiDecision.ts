@@ -6,12 +6,12 @@ export type FungiView = { similarities: ArrayLike<number>; qualityPass: boolean 
 // BioCLIP 2's learned logit scale.
 const LOGIT_SCALE = 100;
 // A photo counts as a fungus when its best species similarity reaches this.
-// On held-out photos it kept every fungus and rejected all everyday objects
-// and over 95% of plants and animals.
+// On held-out photos it kept 99.5% of fungi and rejected all everyday objects
+// and pets and 195 of 200 flowers (ml/results/bioclip2_eval.json).
 export const FUNGUS_SIMILARITY_GATE = 0.7;
 // Species and genus names are shown from this match score. On held-out
-// Danish Fungi photos, species scored this high were right 83-100% of the
-// time and genera about 93% of the time.
+// Danish Fungi photos, species scored this high were right 87% of the time
+// and genera 97% of the time.
 export const NAME_THRESHOLD = 0.6;
 // Warn when the photos give this much combined weight to a toxic genus.
 export const WARNING_THRESHOLD = 0.05;

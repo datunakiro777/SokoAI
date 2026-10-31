@@ -4,3 +4,4 @@ safetensors>=0.5
 litert-torch>=0.10
 ai-edge-quantizer>=0.4
 numpy>=2,<3
+pyarrow>=15  # ml/evaluate_bioclip2_fungi.py
