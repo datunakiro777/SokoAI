@@ -49,6 +49,23 @@ export function Marker({ style }: { style?: StyleProp<ViewStyle> }) {
   return <View style={[styles.marker, style]} />;
 }
 
+/**
+ * The SokoAI mark: a half-disc cap over a stem, with the red signal square.
+ * Same proportions as the app icon (scripts/logo.py); size is the cap width.
+ */
+export function Logo({ size = 22 }: { size?: number }) {
+  const r = size / 2;
+  const stemWidth = r * 0.4;
+  const stemHeight = r * 0.87;
+  return (
+    <View style={{ width: size, height: size }} accessible={false}>
+      <View style={{ width: size, height: r, borderTopLeftRadius: r, borderTopRightRadius: r, backgroundColor: colors.ink }} />
+      <View style={{ position: 'absolute', top: r * 1.13, left: r - stemWidth / 2, width: stemWidth, height: stemHeight, backgroundColor: colors.ink }} />
+      <View style={{ position: 'absolute', top: r * 1.13 + stemHeight - stemWidth, left: r * 1.47, width: stemWidth, height: stemWidth, backgroundColor: colors.accent }} />
+    </View>
+  );
+}
+
 type ButtonProps = {
   label: string;
   onPress: () => void;

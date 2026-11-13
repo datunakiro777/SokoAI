@@ -1,0 +1,278 @@
+{
+  "model": "BioCLIP 2 ViT-L/14, full precision (PyTorch)",
+  "seed": 0,
+  "fungi": {
+    "photos": 2379,
+    "species_in_model_list": 2333,
+    "species_classes": 180,
+    "genera": {
+      "Russula": 864,
+      "Mycena": 658,
+      "Amanita": 289,
+      "Agaricus": 271,
+      "Clitocybe": 188,
+      "Boletus": 109
+    },
+    "quality_pass": 2327,
+    "species_top1": 964,
+    "species_top5": 1570,
+    "genus_top1": 2124,
+    "decisions": {
+      "uncertain": 1500,
+      "notSafe": 581,
+      "unknown": 291,
+      "notDetected": 7
+    },
+    "species_named": 385,
+    "species_named_correct": 336,
+    "genus_named": 1886,
+    "genus_named_correct": 1829,
+    "toxic_genus_photos": 477,
+    "toxic_genus_warned": 460,
+    "poisonous_photos": 243,
+    "poisonous_warned": 162,
+    "harmless_photos": 2136,
+    "harmless_warned": 419,
+    "poisonous_missed": {
+      "Agaricus xanthodermus -> uncertain": 17,
+      "Mycena pura -> uncertain": 13,
+      "Mycena rosea -> uncertain": 13,
+      "Russula emetica -> uncertain": 10,
+      "Mycena diosma -> uncertain": 7,
+      "Mycena pura -> unknown": 6,
+      "Agaricus moelleri -> uncertain": 6,
+      "Agaricus xanthodermus -> unknown": 3,
+      "Russula emetica -> unknown": 2,
+      "Amanita citrina -> notDetected": 1,
+      "Amanita virosa -> unknown": 1,
+      "Mycena rosea -> unknown": 1,
+      "Mycena diosma -> unknown": 1
+    },
+    "per_genus": {
+      "Agaricus": {
+        "photos": 271,
+        "genus_top1": 254,
+        "warned": 38
+      },
+      "Amanita": {
+        "photos": 289,
+        "genus_top1": 274,
+        "warned": 282
+      },
+      "Boletus": {
+        "photos": 109,
+        "genus_top1": 61,
+        "warned": 2
+      },
+      "Clitocybe": {
+        "photos": 188,
+        "genus_top1": 136,
+        "warned": 178
+      },
+      "Mycena": {
+        "photos": 658,
+        "genus_top1": 585,
+        "warned": 32
+      },
+      "Russula": {
+        "photos": 864,
+        "genus_top1": 814,
+        "warned": 49
+      }
+    }
+  },
+  "not_fungi": {
+    "objects": {
+      "photos": 200,
+      "not_detected": 200,
+      "decisions": {
+        "notDetected": 200
+      }
+    },
+    "plants": {
+      "photos": 200,
+      "not_detected": 195,
+      "decisions": {
+        "notDetected": 195,
+        "uncertain": 4,
+        "unknown": 1
+      }
+    },
+    "animals": {
+      "photos": 200,
+      "not_detected": 200,
+      "decisions": {
+        "notDetected": 200
+      }
+    }
+  },
+  "full_precision_seconds": 187.4,
+  "int8_vs_full_precision": {
+    "photos": 2379,
+    "max_similarity_difference": 0.0325050950050354,
+    "same_top_species": 2174,
+    "same_decision": 2326,
+    "int8": {
+      "photos": 2379,
+      "species_in_model_list": 2333,
+      "species_classes": 180,
+      "genera": {
+        "Russula": 864,
+        "Mycena": 658,
+        "Amanita": 289,
+        "Agaricus": 271,
+        "Clitocybe": 188,
+        "Boletus": 109
+      },
+      "quality_pass": 2327,
+      "species_top1": 962,
+      "species_top5": 1569,
+      "genus_top1": 2130,
+      "decisions": {
+        "uncertain": 1501,
+        "notSafe": 581,
+        "unknown": 286,
+        "notDetected": 11
+      },
+      "species_named": 383,
+      "species_named_correct": 332,
+      "genus_named": 1884,
+      "genus_named_correct": 1826,
+      "toxic_genus_photos": 477,
+      "toxic_genus_warned": 460,
+      "poisonous_photos": 243,
+      "poisonous_warned": 163,
+      "harmless_photos": 2136,
+      "harmless_warned": 418,
+      "poisonous_missed": {
+        "Agaricus xanthodermus -> uncertain": 16,
+        "Mycena rosea -> uncertain": 13,
+        "Mycena pura -> uncertain": 12,
+        "Russula emetica -> uncertain": 10,
+        "Mycena diosma -> uncertain": 7,
+        "Agaricus moelleri -> uncertain": 7,
+        "Mycena pura -> unknown": 5,
+        "Agaricus xanthodermus -> unknown": 3,
+        "Mycena diosma -> unknown": 2,
+        "Amanita phalloides -> notDetected": 1,
+        "Amanita citrina -> notDetected": 1,
+        "Amanita virosa -> unknown": 1,
+        "Mycena rosea -> unknown": 1,
+        "Russula emetica -> unknown": 1
+      },
+      "per_genus": {
+        "Agaricus": {
+          "photos": 271,
+          "genus_top1": 254,
+          "warned": 36
+        },
+        "Amanita": {
+          "photos": 289,
+          "genus_top1": 275,
+          "warned": 281
+        },
+        "Boletus": {
+          "photos": 109,
+          "genus_top1": 61,
+          "warned": 2
+        },
+        "Clitocybe": {
+          "photos": 188,
+          "genus_top1": 137,
+          "warned": 179
+        },
+        "Mycena": {
+          "photos": 658,
+          "genus_top1": 583,
+          "warned": 32
+        },
+        "Russula": {
+          "photos": 864,
+          "genus_top1": 820,
+          "warned": 51
+        }
+      }
+    },
+    "full_precision": {
+      "photos": 2379,
+      "species_in_model_list": 2333,
+      "species_classes": 180,
+      "genera": {
+        "Russula": 864,
+        "Mycena": 658,
+        "Amanita": 289,
+        "Agaricus": 271,
+        "Clitocybe": 188,
+        "Boletus": 109
+      },
+      "quality_pass": 2327,
+      "species_top1": 964,
+      "species_top5": 1570,
+      "genus_top1": 2124,
+      "decisions": {
+        "uncertain": 1500,
+        "notSafe": 581,
+        "unknown": 291,
+        "notDetected": 7
+      },
+      "species_named": 385,
+      "species_named_correct": 336,
+      "genus_named": 1886,
+      "genus_named_correct": 1829,
+      "toxic_genus_photos": 477,
+      "toxic_genus_warned": 460,
+      "poisonous_photos": 243,
+      "poisonous_warned": 162,
+      "harmless_photos": 2136,
+      "harmless_warned": 419,
+      "poisonous_missed": {
+        "Agaricus xanthodermus -> uncertain": 17,
+        "Mycena pura -> uncertain": 13,
+        "Mycena rosea -> uncertain": 13,
+        "Russula emetica -> uncertain": 10,
+        "Mycena diosma -> uncertain": 7,
+        "Mycena pura -> unknown": 6,
+        "Agaricus moelleri -> uncertain": 6,
+        "Agaricus xanthodermus -> unknown": 3,
+        "Russula emetica -> unknown": 2,
+        "Amanita citrina -> notDetected": 1,
+        "Amanita virosa -> unknown": 1,
+        "Mycena rosea -> unknown": 1,
+        "Mycena diosma -> unknown": 1
+      },
+      "per_genus": {
+        "Agaricus": {
+          "photos": 271,
+          "genus_top1": 254,
+          "warned": 38
+        },
+        "Amanita": {
+          "photos": 289,
+          "genus_top1": 274,
+          "warned": 282
+        },
+        "Boletus": {
+          "photos": 109,
+          "genus_top1": 61,
+          "warned": 2
+        },
+        "Clitocybe": {
+          "photos": 188,
+          "genus_top1": 136,
+          "warned": 178
+        },
+        "Mycena": {
+          "photos": 658,
+          "genus_top1": 585,
+          "warned": 32
+        },
+        "Russula": {
+          "photos": 864,
+          "genus_top1": 814,
+          "warned": 49
+        }
+      }
+    },
+    "int8_seconds_per_photo_on_mac_cpu": 0.07
+  }
+}
