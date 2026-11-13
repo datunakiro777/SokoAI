@@ -21,7 +21,7 @@ const STATPEARLS = 'StatPearls, Mushroom Toxicity: https://www.ncbi.nlm.nih.gov/
 const NAMA = 'North American Mycological Association: https://namyco.org/interests/toxicology/mushroom-poisoning-syndromes/';
 
 // Genera that include species documented to cause severe poisoning.
-const TOXIC_GENERA: Record<string, Omit<GenusWarning, 'genus'>> = {
+export const TOXIC_GENERA: Record<string, Omit<GenusWarning, 'genus'>> = {
   Amanita: { toxin: 'amatoxins, which can cause fatal liver failure', source: STATPEARLS },
   Galerina: { toxin: 'amatoxins, which can cause fatal liver failure', source: STATPEARLS },
   Lepiota: { toxin: 'amatoxins, which can cause fatal liver failure', source: STATPEARLS },
@@ -32,7 +32,7 @@ const TOXIC_GENERA: Record<string, Omit<GenusWarning, 'genus'>> = {
 };
 
 // These sources document toxicity of the named species, not the accuracy of this image model.
-const POISONOUS_SPECIES: Record<string, { commonName: string; source: string }> = {
+export const POISONOUS_SPECIES: Record<string, { commonName: string; source: string }> = {
   'Amanita muscaria': {
     commonName: 'Fly agaric',
     source: 'US FDA: https://www.fda.gov/media/184512/download',
@@ -89,7 +89,7 @@ function topSpecies(probabilities: Float64Array): (Match & { index: number })[] 
     const name = scientificName(index);
     const existing = merged.get(name);
     if (existing) existing.confidence += probabilities[index];
-    else merged.set(name, { index, scientificName: name, commonName: commonName(index), confidence: probabilities[index] });
+    else merged.set(name, { index, id: String(index), scientificName: name, commonName: commonName(index), confidence: probabilities[index] });
   }
   return [...merged.values()].sort((a, b) => b.confidence - a.confidence);
 }
@@ -149,8 +149,8 @@ export function decideFungi(views: FungiView[]): Decision {
     ...model,
     ...(species && namedSpecies ? { species, speciesConfidence: namedSpecies.confidence } : {}),
     ...(namedGenus ? { genus: namedGenus } : {}),
-    alternatives: candidates.slice(0, 3).map(({ scientificName: name, commonName: common, confidence }) =>
-      ({ scientificName: name, commonName: common, confidence })),
+    alternatives: candidates.slice(0, 3).map(({ id, scientificName: name, commonName: common, confidence }) =>
+      ({ id, scientificName: name, commonName: common, confidence })),
     ...(warning ? { warning } : {}),
   };
 

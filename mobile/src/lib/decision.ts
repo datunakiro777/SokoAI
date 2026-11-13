@@ -9,6 +9,8 @@ export type Species = {
 };
 
 export type Match = {
+  /** Catalog species index. */
+  id: string;
   scientificName: string;
   commonName?: string;
   confidence: number;
