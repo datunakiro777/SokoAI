@@ -7,7 +7,7 @@ import { FUNGI_MODEL_SHA256, FUNGI_SPECIES_COUNT } from '../lib/fungiModel';
 import { loadHistory } from '../lib/history';
 import { MODEL_LICENSE } from '../lib/modelLicense';
 import { useScan } from '../state/ScanContext';
-import { Body, Button, Display, ItemTitle, Label, Lead, Meta, Rule, Section, TextLink } from '../ui/components';
+import { Body, Button, Display, ItemTitle, Label, Lead, Logo, Meta, Rule, Section, TextLink } from '../ui/components';
 import { RAIL_BREAKPOINT, colors, displaySize, fonts, gutter, rule } from '../ui/theme';
 
 const expoGo = Constants.appOwnership === 'expo';
@@ -43,7 +43,10 @@ export default function HomeScreen() {
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={[styles.masthead, { paddingHorizontal: pad }]}>
-          <Label style={styles.brand}>SokoAI</Label>
+          <View style={styles.brandRow}>
+            <Logo />
+            <Label style={styles.brand}>SokoAI</Label>
+          </View>
           <Label>Offline field guide</Label>
         </View>
         <Rule />
@@ -118,6 +121,7 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.ground },
   scroll: { paddingBottom: 24 },
   masthead: { minHeight: 56, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  brandRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   brand: { fontFamily: fonts.display, fontSize: 16, letterSpacing: 0 },
   openingWide: { flexDirection: 'row', alignItems: 'flex-end', gap: 24 },
   openingStatement: { width: '72%' },
